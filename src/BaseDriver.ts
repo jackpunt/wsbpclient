@@ -1,4 +1,4 @@
-import type { AWebSocket, WebSocketDriver, DataBuf } from "./types";
+import type { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE } from "./types";
 
 /**
  * Stack drivers above a websocket.
@@ -6,11 +6,16 @@ import type { AWebSocket, WebSocketDriver, DataBuf } from "./types";
  * OUTER is closer to the application, aka upstream
  * 
  */
-export class BaseDriver<INNER extends DataBuf<any>, OUTER extends DataBuf<OUTER>> implements WebSocketDriver<INNER, OUTER> {
-  dnstream: WebSocketDriver<any, INNER>; // next driver downstream
-  upstream: WebSocketDriver<OUTER, any>; // next driver upstream
+export class BaseDriver<INNER extends pbMessage, OUTER extends pbMessage> implements WebSocketDriver<INNER, OUTER> {
+  dnstream: UpstreamDrivable<INNER>;      // next driver downstream
+  upstream: WebSocketEventHandler<OUTER>; // next driver upstream
 
-  connect(upstream: WebSocketDriver<OUTER, any>): void {
+  connectToStream(dnstream: UpstreamDrivable<INNER>) {
+    dnstream.connect(this)
+    this.dnstream = dnstream;
+  }
+  /** Add the upstream driver. */
+  connect(upstream: WebSocketEventHandler<OUTER>): void {
     this.upstream = upstream
   }
   onopen(ev: Event): void {
@@ -22,13 +27,32 @@ export class BaseDriver<INNER extends DataBuf<any>, OUTER extends DataBuf<OUTER>
   onclose(ev: CloseEvent): void {
     if (!!this.upstream) this.upstream.onclose(ev)
   };
-  /** process message from downstream. */
+
+  /**
+   * process message from downstream
+   * OVERRIDE ME!
+   * 
+   * default: passing it directly upstream!  
+   */
   wsmessage(data: DataBuf<INNER>): void {
     if (!!this.upstream) this.upstream.wsmessage(data)
   };
 
-  sendBuffer(data: Uint8Array, ecb?: (error: Event | Error) => void): void {
+  deserialize(bytes: Uint8Array): INNER {
+    throw new Error("Method not implemented.");
+  }
+
+  parseEval(message: INNER, ...args: any): void {
+    throw new Error("Method not implemented.");
+  }
+
+  /** process data from upstream by passing it downsteam. */
+  sendBuffer(data: DataBuf<OUTER>, ecb?: (error: Event | Error) => void): void {
     this.dnstream.sendBuffer(data)
+  }
+  /** process close by sending it upstream */
+  closeStream(code: CLOSE_CODE, reason: string): void {
+    this.dnstream.closeStream(code, reason)
   }
 }
 
@@ -36,12 +60,9 @@ export class BaseDriver<INNER extends DataBuf<any>, OUTER extends DataBuf<OUTER>
  * Bottom of the websocket driver stack: connect actual WebSocket.
  * Send & Recieve messages over a WebSocket.
  */
-export class WebSocketBase<INNER extends DataBuf<INNER>, OUTER extends DataBuf<OUTER>> extends BaseDriver<INNER, OUTER> {
+export class WebSocketBase<INNER extends pbMessage, OUTER extends pbMessage> 
+  extends BaseDriver<INNER, OUTER> {
   ws: AWebSocket;
-
-  onmessage(ev: MessageEvent<INNER>): void {
-    this.wsmessage(ev.data)
-  };
 
   /** replace the usual connect(WebSocketDriver) 
    * @param ws the ws.WebSocket (or WebSocket or url) connection to be handled. (or null)
@@ -64,6 +85,21 @@ export class WebSocketBase<INNER extends DataBuf<INNER>, OUTER extends DataBuf<O
         ws.onmessage = this.onmessage;
     }
     this.ws = ws;  // may be null
+  }
+
+  /** process message from socket: pass it upstream. */  
+  onmessage(ev: MessageEvent<DataBuf<INNER>>): void {
+    this.wsmessage(ev.data)
+  };
+
+  /** process data from upstream by passing it downsteam. */
+  sendBuffer(data: DataBuf<OUTER>, ecb?: (error: Event | Error) => void): void {
+    this.ws.send(data)
+  }
+
+  /** invoke WebSocket.close() */
+  closeStream(code: CLOSE_CODE, reason: string): void {
+    this.ws.close(code, reason)
   }
 
 }

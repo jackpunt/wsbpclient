@@ -21,22 +21,29 @@ export const fmt = "YYYY-MM-DD kk:mm:ss.SSS"
 export function stime () { return moment().format(fmt) }
 
 /** standard HTML [Web]Socket events, for client (& server ws.WebSocket) */
-export interface WebSocketEventHandler<I> {
+/** what the downstream invokes/sends_to this [upstream] Driver: */
+export interface WebSocketEventHandler<I extends pbMessage> {
 	onopen: (ev: Event) => void | null;  // { target: WebSocket }
 	onerror: (ev: Event) => void | null; // { target: WebSocket, error: any, message: any, type: string }
 	onclose: (ev: CloseEvent) => void | null; // { target: WebSocket, wasClean: boolean, code: number, reason: string; }
 	//onmessage: (ev: MessageEvent<I>) => void | null; // { target: WebSocket, data: any, type: string }
-	wsmessage: (buf: DataBuf<I>) => void | null; // from ws.WebSocket Node.js server (buf: {any[] | Buffer })
+	wsmessage: (buf: DataBuf<I>) => void | null; // from downstream: bytes encoding my INPUT proto
 }
 
 export interface PbParser<T extends pbMessage> {
 	deserialize(bytes: DataBuf<T>): T
-	parseEval(message:T, ...args:any): void;
+	parseEval(message:T, ...args: any): void;
+}
+/** WebSocketDriver that can be linked by an upstream driver */
+export interface UpstreamDrivable<O extends pbMessage> {
+  /** set upstream driver, send bytes upstream */
+  connect(wsd: WebSocketEventHandler<O>): void
+  closeStream(code: CLOSE_CODE, reason: string): void
+  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void; // process message from upstream 
+  //wsmessage: (buf: DataBuf<I>) => void | null; // process message coming from downstream
 }
 
 /** Generic [web] socket driver, pass message up-/down-stream to a connected WSD. */
-export interface WebSocketDriver<I,O> extends WebSocketEventHandler<I> {
-  connect(wsd: WebSocketDriver<O, any>): void
-  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void; // process message from upstream 
-  //wsmessage: (buf: DataBuf<I>) => void | null; // process message coming from downstream
+export interface WebSocketDriver<I extends pbMessage, O extends pbMessage>
+  extends WebSocketEventHandler<I>, UpstreamDrivable<O> {
 }

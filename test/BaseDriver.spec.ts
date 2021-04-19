@@ -1,8 +1,8 @@
 import { BaseDriver, WebSocketBase } from '../src/BaseDriver'
-import { DataBuf, stime, EzPromise} from '../src/types'
+import { DataBuf, stime, EzPromise, pbMessage} from '../src/types'
 
-var base = new BaseDriver<DataBuf<any>, any>()
-var pbase = new EzPromise<BaseDriver<DataBuf<any>, any>>()
+var base = new BaseDriver<pbMessage, pbMessage>()
+var pbase = new EzPromise<BaseDriver<pbMessage, pbMessage>>()
 test("BaseDriver.constructor", () => {
   expect(base).toBeInstanceOf(BaseDriver)
   pbase.fulfill(base)
@@ -15,8 +15,8 @@ test("BaseDriver.connect", done => {
   })
 }) 
 
-var wsbase = new WebSocketBase<DataBuf<any>, DataBuf<any>>() 
-var pwsbase = new EzPromise<WebSocketBase<DataBuf<any>, any>>()
+var wsbase = new WebSocketBase<pbMessage, pbMessage>() 
+var pwsbase = new EzPromise<WebSocketBase<pbMessage, pbMessage>>()
 test("WebSocketBase.construct", () => {
     expect(wsbase).toBeInstanceOf(WebSocketBase)
     pwsbase.fulfill(wsbase)
