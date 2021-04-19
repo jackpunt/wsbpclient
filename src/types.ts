@@ -46,4 +46,5 @@ export interface UpstreamDrivable<O extends pbMessage> {
 /** Generic [web] socket driver, pass message up-/down-stream to a connected WSD. */
 export interface WebSocketDriver<I extends pbMessage, O extends pbMessage>
   extends WebSocketEventHandler<I>, UpstreamDrivable<O> {
+  connectToStream(dnstream: UpstreamDrivable<I>): this
 }

@@ -2,20 +2,21 @@ import type { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHan
 
 /**
  * Stack drivers above a websocket.
- * INNER is closer to the websocket, aka downstream
- * OUTER is closer to the application, aka upstream
+ * I (INNER) is closer to the websocket, aka downstream
+ * O (OUTER) is closer to the application, aka upstream
  * 
  */
-export class BaseDriver<INNER extends pbMessage, OUTER extends pbMessage> implements WebSocketDriver<INNER, OUTER> {
-  dnstream: UpstreamDrivable<INNER>;      // next driver downstream
-  upstream: WebSocketEventHandler<OUTER>; // next driver upstream
+export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O> {
+  dnstream: UpstreamDrivable<I>;      // next driver downstream
+  upstream: WebSocketEventHandler<O>; // next driver upstream
 
-  connectToStream(dnstream: UpstreamDrivable<INNER>) {
+  connectToStream(dnstream: UpstreamDrivable<I>): this {
     dnstream.connect(this)
     this.dnstream = dnstream;
+    return this;
   }
   /** Add the upstream driver. */
-  connect(upstream: WebSocketEventHandler<OUTER>): void {
+  connect(upstream: WebSocketEventHandler<O>): void {
     this.upstream = upstream
   }
   onopen(ev: Event): void {
@@ -34,20 +35,20 @@ export class BaseDriver<INNER extends pbMessage, OUTER extends pbMessage> implem
    * 
    * default: passing it directly upstream!  
    */
-  wsmessage(data: DataBuf<INNER>): void {
+  wsmessage(data: DataBuf<I>): void {
     if (!!this.upstream) this.upstream.wsmessage(data)
   };
 
-  deserialize(bytes: Uint8Array): INNER {
+  deserialize(bytes: Uint8Array): I {
     throw new Error("Method not implemented.");
   }
 
-  parseEval(message: INNER, ...args: any): void {
+  parseEval(message: I, ...args: any): void {
     throw new Error("Method not implemented.");
   }
 
   /** process data from upstream by passing it downsteam. */
-  sendBuffer(data: DataBuf<OUTER>, ecb?: (error: Event | Error) => void): void {
+  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void {
     this.dnstream.sendBuffer(data)
   }
   /** process close by sending it upstream */
@@ -56,14 +57,32 @@ export class BaseDriver<INNER extends pbMessage, OUTER extends pbMessage> implem
   }
 }
 
+type WSD<I extends pbMessage, O extends pbMessage> = WebSocketDriver<I,O>
+type AnyWSD = WSD<pbMessage, pbMessage>
+
 /**
  * Bottom of the websocket driver stack: connect actual WebSocket.
  * Send & Recieve messages over a WebSocket.
  */
-export class WebSocketBase<INNER extends pbMessage, OUTER extends pbMessage> 
-  extends BaseDriver<INNER, OUTER> {
+export class WebSocketBase<I extends pbMessage, O extends pbMessage> 
+  extends BaseDriver<I, O> {
   ws: AWebSocket;
 
+  /** 
+   * stack the given drivers on top of this WebSocketBase 
+   * 
+   * TODO: is there a Generic Type for the chain of drivers?
+   * 
+   * COD<I extends pbMessage, O extends pbMessage> = d0<I,X0>, d1<X0,X1>, d2<X1,X2 extends O>
+   */
+  //connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): WebSocketDriver<any,any>}> ): WebSocketDriver<any, any> {
+  connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): AnyWSD}> ): AnyWSD {
+    let wsb = this
+    let top = wsb as AnyWSD
+    drivers.forEach(d => { top = new d().connectToStream(top)} )
+    wsb.connectws(ws)
+    return top
+  }
   /** replace the usual connect(WebSocketDriver) 
    * @param ws the ws.WebSocket (or WebSocket or url) connection to be handled. (or null)
    * Can also be a SocketSender (ie another CnxHandler)
@@ -88,12 +107,12 @@ export class WebSocketBase<INNER extends pbMessage, OUTER extends pbMessage>
   }
 
   /** process message from socket: pass it upstream. */  
-  onmessage(ev: MessageEvent<DataBuf<INNER>>): void {
+  onmessage(ev: MessageEvent<DataBuf<I>>): void {
     this.wsmessage(ev.data)
   };
 
   /** process data from upstream by passing it downsteam. */
-  sendBuffer(data: DataBuf<OUTER>, ecb?: (error: Event | Error) => void): void {
+  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void {
     this.ws.send(data)
   }
 

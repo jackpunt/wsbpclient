@@ -6,14 +6,16 @@ import { CgMessage, CgType } from "./CgProto";
 // export type ParserFactory<INNER extends pbMessage, OUTER extends CgMessage> 
 //    = (cnx: CgBaseCnx<INNER, OUTER>) => PbParser<INNER>;
 
-export type CgMessageFields = {type?: CgType, success?: boolean, group?: string, client_id?: number, cause?: string}
-//type CMF = ReturnType<typeof CgMessage.toObject> // https://www.typescriptlang.org/docs/handbook/utility-types.html
+// https://www.typescriptlang.org/docs/handbook/utility-types.html
+type CGMK = Exclude<keyof CgMessage, Partial<keyof pbMessage> | "serialize">
+export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
 
-// use { signatue } to define a type; a class type using { new(): Type }
+// use { signature } to define a type; a class type using { new(): Type }
 //function create<Type>(c: { new (): Type }): Type { return new c(); }
 
+/** EzPromise<CgMessage> which holds the actual message that was sent. */
 class AckPromise extends EzPromise<CgMessage> {
-  constructor(public message: CgMessage, def = (res, rej) => { }) {
+  constructor(public message: CgMessage, def = (ful, rej) => { }) {
     super(def)
   }
 }
@@ -22,7 +24,7 @@ class AckPromise extends EzPromise<CgMessage> {
  * Implement the base functiunality for the CgProto (client-group) Protocol.
  * BaseDriver<I extends DataBuf<CgMessage>, O extends DataBuf<pbMessage>>
  */
-class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
+export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
     static msgsToAck = [CgType.send, CgType.join, CgType.leave]
 
@@ -66,10 +68,11 @@ class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       this.promise_of_ack.reject(ev)
     }
   }
-  sendAck(cause: string, opts?: CgMessageFields) {
+  // opts?: Exclude<CgMessageOpts, "cause" | "type">
+  sendAck(cause: string, opts?: CgMessageOpts) {
     this.sendToSocket(new CgMessage({ success: true, ...opts, cause, type: CgType.ack }))
   }
-  sendNak(cause: string, opts?: CgMessageFields) {
+  sendNak(cause: string, opts?: CgMessageOpts) {
     this.sendToSocket(new CgMessage({ success: false, ...opts, cause, type: CgType.ack }))
   }
 
