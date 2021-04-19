@@ -5,7 +5,6 @@ export { EzPromise } from '../../ezpromise'
 //export EzPromise;
 export interface pbMessage extends jspb.Message {}
 
-
 /** 
  * websocket close codes.
  * 
