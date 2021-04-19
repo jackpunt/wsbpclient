@@ -1,6 +1,6 @@
 {
   "name": "wspbclient",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "client side for wspbserver",
   "main": "lib/index.js",
   "files": [
@@ -8,7 +8,6 @@
   ],
   "scripts": {
     "patch": "replace 'serializeBinary(): Uint8Array { throw new Error(\"Method not implemented.\"); }' 'serializeBinary(): Uint8Array { return this.serialize(); }\n    static deserializeBinary(bytes: Uint8Array): CgMessage { return CgMessage.deserialize(bytes); }' -- src/CgProto.ts ",
-
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
     "test": "jest --runInBand --force-exit --detectOpenHandles --verbose",
     "tsc-options": "are configured in tsconfig.json",
