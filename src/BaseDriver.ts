@@ -57,8 +57,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
 }
 
-type WSD<I extends pbMessage, O extends pbMessage> = WebSocketDriver<I,O>
-type AnyWSD = WSD<pbMessage, pbMessage>
+export type AnyWSD = WebSocketDriver<pbMessage, pbMessage>
 
 /**
  * Bottom of the websocket driver stack: connect actual WebSocket.
@@ -76,12 +75,13 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * COD<I extends pbMessage, O extends pbMessage> = d0<I,X0>, d1<X0,X1>, d2<X1,X2 extends O>
    */
   //connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): WebSocketDriver<any,any>}> ): WebSocketDriver<any, any> {
-  connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): AnyWSD}> ): AnyWSD {
+  connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): AnyWSD}> ): AnyWSD[] {
     let wsb = this
     let top = wsb as AnyWSD
-    drivers.forEach(d => { top = new d().connectToStream(top)} )
+    let stack: AnyWSD[] = [wsb]
+    drivers.forEach(d => { top = new d().connectToStream(top), stack.push(top)} )
     wsb.connectws(ws)
-    return top
+    return stack
   }
   /** replace the usual connect(WebSocketDriver) 
    * @param ws the ws.WebSocket (or WebSocket or url) connection to be handled. (or null)
