@@ -1,6 +1,6 @@
 {
   "name": "wspbclient",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "client side for wspbserver",
   "main": "lib/index.js",
   "files": [
