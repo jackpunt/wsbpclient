@@ -1,6 +1,6 @@
 import * as moment from 'moment';
 import type * as jspb from 'google-protobuf';
-export { EzPromise } from '../../ezpromise'
+export { EzPromise } from '@thegraid/ezpromise';
 
 //export EzPromise;
 export interface pbMessage extends jspb.Message {}
