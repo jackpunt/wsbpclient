@@ -9,7 +9,8 @@
   "scripts": {
     "patch": "replace 'serializeBinary(): Uint8Array { throw new Error(\"Method not implemented.\"); }' 'serializeBinary(): Uint8Array { return this.serialize(); }\n    static deserializeBinary(bytes: Uint8Array): CgMessage { return CgMessage.deserialize(bytes); }' -- src/CgProto.ts ",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
-    "test": "jest --runInBand --force-exit --detectOpenHandles --verbose",
+    "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles",
+    "test":    "jest --runInBand --force-exit --verbose",
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc",
     "clean": "rm -f dist/out-tsc/*",
@@ -35,7 +36,8 @@
     "@thegraid/ezpromise": "^1.0.1",
     "google-protobuf": "^3.15.8",
     "moment": "^2.29.1",
-    "tslib": "^2.1.0"
+    "tslib": "^2.1.0",
+    "ws": "^7.4.5"
   },
   "devDependencies": {
     "@types/google-protobuf": "^3.15.0",

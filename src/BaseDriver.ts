@@ -75,7 +75,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * COD<I extends pbMessage, O extends pbMessage> = d0<I,X0>, d1<X0,X1>, d2<X1,X2 extends O>
    */
   //connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): WebSocketDriver<any,any>}> ): WebSocketDriver<any, any> {
-  connectStream(ws: WebSocket | string, ...drivers: Array<{ new (): AnyWSD}> ): AnyWSD[] {
+  connectStream(ws: AWebSocket | string, ...drivers: Array<{ new (): AnyWSD}> ): AnyWSD[] {
     let wsb = this
     let top = wsb as AnyWSD
     let stack: AnyWSD[] = [wsb]
@@ -88,7 +88,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * Can also be a SocketSender (ie another CnxHandler)
    * @param msg_handler optional override PbMessage handler; default: 'this'
   */
-  connectws(ws: WebSocket | string) {
+  connectws(ws: AWebSocket | string) {
     if (typeof (ws) === 'string') {
       let url = ws;
       ws = new WebSocket(url); // TODO: handle failure of URL or connection

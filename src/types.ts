@@ -1,8 +1,8 @@
 import * as moment from 'moment';
 import type * as jspb from 'google-protobuf';
+import type wsWebSocket = require('ws')
 export { EzPromise } from '@thegraid/ezpromise';
 
-//export EzPromise;
 export interface pbMessage extends jspb.Message {}
 
 /** 
@@ -11,10 +11,16 @@ export interface pbMessage extends jspb.Message {}
  * https://docs.microsoft.com/en-us/dotnet/api/system.net.websockets.websocketclosestatus 
  */
 export enum CLOSE_CODE { NormalCLosure = 1000, EndpointUnavailable = 1001, Empty = 1005 }
+export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED">
+// CONNECTING = 0
+// OPEN = 1
+// CLOSING = 2
+// CLOSED = 3
+
 
 /** a bytearray that decodes to type T */
 export type DataBuf<T> = Uint8Array
-export type AWebSocket = WebSocket
+export type AWebSocket = WebSocket | wsWebSocket
 
 export const fmt = "YYYY-MM-DD kk:mm:ss.SSS"
 export function stime () { return moment().format(fmt) }
