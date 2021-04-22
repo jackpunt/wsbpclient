@@ -7,10 +7,13 @@
     "lib"
   ],
   "scripts": {
-    "patch": "replace 'serializeBinary(): Uint8Array { throw new Error(\"Method not implemented.\"); }' 'serializeBinary(): Uint8Array { return this.serialize(); }\n    static deserializeBinary(bytes: Uint8Array): CgMessage { return CgMessage.deserialize(bytes); }' -- src/CgProto.ts ",
+    "patch-serial": "replace 'serializeBinary(): Uint8Array { throw new Error(\"Method not implemented.\"); }' 'serializeBinary(): Uint8Array { return this.serialize(); }' -- src/*Proto.ts",
+    "patch-return": "replace 'return writer.getResultBuffer();' 'return writer.getResultBuffer();\n        return undefined;' -- src/*Proto.ts",
+    "patch-reader": "replace -s 'Uint8Array ? new pb_1.BinaryReader(bytes) : bytes' 'pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes)' --  src/*Proto.ts",
+    "patch": "npm run patch-reader; npm run patch-return; npm run patch-serial",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
     "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles",
-    "test":    "jest --runInBand --force-exit --verbose",
+    "test": "jest --runInBand --force-exit --verbose",
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc",
     "clean": "rm -f dist/out-tsc/*",

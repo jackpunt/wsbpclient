@@ -2,6 +2,14 @@ import { BaseDriver } from "./BaseDriver";
 import { AWebSocket, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
 import { CgMessage, CgType } from "./CgProto";
 
+declare module './CgProto' {
+  interface CgMessage {
+    expectsAck(): boolean 
+  }
+}
+CgMessage.prototype.expectsAck = function() {
+  return [CgType.send, CgType.join, CgType.leave].includes(this.type)
+}
 
 // export type ParserFactory<INNER extends pbMessage, OUTER extends CgMessage> 
 //    = (cnx: CgBaseCnx<INNER, OUTER>) => PbParser<INNER>;
@@ -13,8 +21,11 @@ export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
 // use { signature } to define a type; a class type using { new(): Type }
 //function create<Type>(c: { new (): Type }): Type { return new c(); }
 
-/** EzPromise<CgMessage> which holds the actual message that was sent. */
-class AckPromise extends EzPromise<CgMessage> {
+/** 
+ * EzPromise\<CgMessage\> which holds the actual message that was sent. 
+ * (AckPromise.resolved && AckPromise.value) === undefined for AckPromise.message.type 
+ */
+export class AckPromise extends EzPromise<CgMessage> {
   constructor(public message: CgMessage, def = (ful, rej) => { }) {
     super(def)
   }
@@ -22,7 +33,7 @@ class AckPromise extends EzPromise<CgMessage> {
 
 /**
  * Implement the base functiunality for the CgProto (client-group) Protocol.
- * BaseDriver<I extends DataBuf<CgMessage>, O extends DataBuf<pbMessage>>
+ * BaseDriver\<I extends DataBuf\<CgMessage\>, O extends DataBuf\<pbMessage\>\>
  */
 export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
@@ -43,6 +54,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   deserialize(bytes: DataBuf<CgMessage>): CgMessage  {
     return CgMessage.deserialize(bytes)
   }
+  /** deserialize && parseEval(message) */
   wsmessage(data: DataBuf<CgMessage>) {
     let message = CgMessage.deserialize(data)
     this.parseEval(message)    
@@ -69,33 +81,49 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     }
   }
   // opts?: Exclude<CgMessageOpts, "cause" | "type">
-  sendAck(cause: string, opts?: CgMessageOpts) {
-    this.sendToSocket(new CgMessage({ success: true, ...opts, cause, type: CgType.ack }))
+  /**
+   * 
+   * @param cause 
+   * @param opts 
+   */
+  sendAck(cause: string, opts?: CgMessageOpts): AckPromise | undefined {
+    return this.sendToSocket(new CgMessage({ success: true, ...opts, cause, type: CgType.ack }))
   }
   sendNak(cause: string, opts?: CgMessageOpts) {
-    this.sendToSocket(new CgMessage({ success: false, ...opts, cause, type: CgType.ack }))
+    return this.sendToSocket(new CgMessage({ success: false, ...opts, cause, type: CgType.ack }))
   }
 
 
   /** 
-   * Send message to websocket. 
-   * save functions to resolve/reject this.promise_of_ack
-   * @return a Promise of Ack for CgType: join, leave, send. (else undefined)
+   * Send message downstream, toward websocket. 
+   * 
+   * @return an AckPromise that:
+   * 
+   * rejects if there is an error while sending
+   * 
+   * resolves when Ack for CgType: join, leave, send is received
+   * 
+   * resolves immediately if sending an Ack or None...
    */
-   sendToSocket(message: CgMessage): Promise<CgMessage> {
+  sendToSocket(message: CgMessage): AckPromise {
+    let ackPromise = new AckPromise(message)
     let bytes = message.serializeBinary()
-    this.sendBuffer(bytes) // send message to socket (no cb... wait for Ack)
-    this.promise_of_ack = undefined
-    if (CgBase.msgsToAck.includes(message.type)) {
-      this.promise_of_ack = new AckPromise(message)
+    let reject_on_error = (error: Error | Event) => {
+      ackPromise.reject((error as Error).message || (error as Event).type)
     }
-    return this.promise_of_ack
+    this.sendBuffer(bytes, reject_on_error) // send message to socket
+    if (!message.expectsAck() && !ackPromise.resolved) {
+      ackPromise.fulfill(undefined) // no Ack is coming
+    } else {
+      this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck
+    }
+    return ackPromise
   }
   /** 
    * send a [sub-protocol (O = CmMessage)] message, wrapped in a I = CgMessage(CgType.send)
-   * @return Promise that resolves to the Ack/Nak message
+   * @return AckPromise that resolves to the Ack/Nak of the send message
    */
-  sendWrapped(message: O, client_id?: number): Promise<CgMessage> {
+  sendWrapped(message: O, client_id?: number): AckPromise {
     let msg = message.serializeBinary()
     let cgmsg: CgMessage = new CgMessage({ type: CgType.send, msg, client_id });
     return this.sendToSocket(cgmsg)
@@ -105,7 +133,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @param message Object containing pbMessage<INNER>
    * @param client_id send to: 0 is ref; null is Group
    */
-  send_send(message: O, client_id?: number): Promise<CgMessage> {
+  send_send(message: O, client_id?: number): AckPromise {
     let promise = this.sendWrapped(message, client_id)
     promise.then((ack) => {}, (nak) => {})
     return promise
@@ -117,16 +145,17 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @param cause identifying string
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
-  send_join(group: string, id?: number, cause?: string): Promise<CgMessage> {
+  send_join(group: string, id?: number, cause?: string): AckPromise {
     let message = new CgMessage({ type: CgType.join, group: group, client_id: id, cause: cause })
     let promise = this.sendToSocket(message)
+    //console.log(stime(), "send_join: promise=", promise, "then=", promise.then)
     promise.then((ack) => {
       this.group_name = ack.group
       this.client_id = ack.client_id
-    }, (nak: any) => {
-
+    }, (rej: any) => {
+      console.log("CgBase.send_join:", rej)
     })
-    return 
+    return promise
   }
   /**
    * client makes a connection to server group.
@@ -158,6 +187,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   parseEval(message: CgMessage): void {
     // msgs_to_ack: join, leave, send, none?
+    // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
     switch (message.type) {
       case CgType.ack: {
         let req = !!this.promise_of_ack && this.promise_of_ack.message;
@@ -217,7 +247,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     }
     return
   }
-  /** informed that another client has joined */
+  /** informed that a client wants to join; check client_id & passcode. */
   eval_join(message: CgMessage): void {
     console.log(stime(), "CgBase.join: ", message)
     return
