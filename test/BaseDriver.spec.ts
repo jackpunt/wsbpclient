@@ -81,7 +81,9 @@ test("WebSocket connected & OPEN", () => {
     expect(wss).toBeInstanceOf(wsWebSocket)
     expect(wss.readyState).toBe(wss.OPEN)
   }, (rej) => {
-    expect(rej).toBe("timeout") // never reached !! 
+    okToClose.fulfill("no websocket connection")
+    fail(rej)
+    //expect(rej).toBe("timeout") // never reached !! 
   })
 })
 
