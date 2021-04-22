@@ -5,23 +5,42 @@ import wsWebSocket = require('ws')
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
 
-var readyState = (wss: wsWebSocket) => {
+var readyState = (wss: wsWebSocket): string => {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][wss.readyState]
 }
+var testTimeout = 3000;
+
 const echourl = "wss://game7.thegraid.com:8443"
 
-var testTimeout = 3000;
+
 class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
-  connectws(ws: AWebSocket | string) {
+  url: string
+  connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<wsWebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
-      let url = ws;
+      let cnx_time = 1000;
+      let url = this.url = ws;
       let wss = new wsWebSocket(url); // TODO: handle failure of URL or connection
       wss.binaryType = "arraybuffer";
 
-      wss.addEventListener("message", (ev: { data: any, type: string, target: wsWebSocket }) => {
+      wss.on('error', (ev: Event) => {
+        console.log(stime(), "wss error:", ev)
+        closeP.fulfill(close_fail)
+      })
+
+      wss.on('open', () => {
+        console.log(stime(), "wss connected & open!   openP.fulfill(wss)")
+        openP.fulfill(wss)
+        setTimeout(() => {
+          console.log(stime(), 'Ok to Close: fulfill("timeout") = ', cnx_time)
+          okToClose.fulfill("timeout")
+        }, cnx_time)
+      })
+
+      // fwd message.data from this<wsWebSocket> to BaseDriver:
+      wss.on('message', (data: DataBuf<pbMessage>) => {
         //console.log("message event received:", { type: ev.type, data: ev.data })
-        this.wsmessage(ev.data)
+        this.wsmessage(data)
       })
       ws = wss as unknown as AWebSocket;  // may be null
     }
@@ -31,6 +50,10 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
 }
 
 class TestCgClient<O extends pbMessage> extends CgClient<O> {
+  wsmessage(data: DataBuf<O>) {
+    console.log(stime(), "TestCgClient.wsmessage data=", data)
+    super.wsmessage(data)
+  }
   msgPromiseByType: Record<string, AckPromise> = {}
   sendToSocket(message: CgMessage): AckPromise {
     let rv = super.sendToSocket(message)
@@ -38,7 +61,7 @@ class TestCgClient<O extends pbMessage> extends CgClient<O> {
     return rv
   }
   eval_ack(ack: CgMessage, req: CgMessage) {
-    //console.log(stime(), "eval_ack:", ack, "for req", req)
+    console.log(stime(), "eval_ack:", ack, "for req", req)
     super.eval_ack(ack, req)
   }
 }
@@ -46,28 +69,16 @@ let configWebSocket = (wsbase: TestSocketBase<pbMessage, pbMessage>) => {
   var wsopts: wsWebSocket.ClientOptions
   //wsbase.connectws(echourl)
   let wss = wsbase.wss
-
-  wss.on('error', (ev: Event) => {
-    console.log(stime(), "wss error:", ev)
-    closeP.fulfill(close_fail)
-  })
-  wss.addEventListener('open', () => {
-    console.log(stime(), "wss connected & open!   cnxOpen.fulfill(true)")
-    cnxOpen.fulfill(wss)
-    setTimeout(() => {
-      console.log(stime(), "Ok to Close: timeout")
-      okToClose.fulfill("timeout")
-    }, 1000)
-  })
 }
 var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
 var wsbase = new TestSocketBase<pbMessage, pbMessage>()
 
 test("WebSocketBase.construct & connectws", () => {
   expect(wsbase).toBeInstanceOf(WebSocketBase)
-  wsbase.connectws(echourl)
-  configWebSocket(wsbase)
+  console.log(stime(), "try connect to echourl", echourl)
+  wsbase.connectWebSocket(echourl, cnxOpen, closeP)
   expect(wsbase.ws).toBeInstanceOf(wsWebSocket)
+  console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.wss))
   pwsbase.fulfill(wsbase)
   setTimeout(() => cnxOpen.reject("timeout"), 500); // is moot if alaready connected
 })
@@ -82,6 +93,7 @@ test("WebSocket connected & OPEN", () => {
     expect(wss).toBeInstanceOf(wsWebSocket)
     expect(wss.readyState).toBe(wss.OPEN)
   }, (rej) => {
+    console.log("WebSocket connection rejected", rej)
     okToClose.fulfill("no websocket connection")
     fail(rej)
     //expect(rej).toBe("timeout") // never reached !! 
@@ -98,7 +110,7 @@ var cgclient: CgClient<pbMessage> = new TestCgClient();
 test("CgClient.connectToStream", () => {
   return pwsbase.finally(() => {
     console.log(stime(), "try cgclient.connectToStream")
-    cgclient.connectToStream(wsbase)
+    cgclient.connectDnStream(wsbase)
     expect(cgclient.dnstream).toBe(wsbase)
     expect(wsbase.upstream).toBe(cgclient)
     pMsg0 = cgclient.send_join(group_name, 1, "passcode1")

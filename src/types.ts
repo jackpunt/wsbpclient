@@ -30,7 +30,7 @@ export interface WebSocketEventHandler<I extends pbMessage> {
 	onopen: (ev: Event) => void | null;  // { target: WebSocket }
 	onerror: (ev: Event) => void | null; // { target: WebSocket, error: any, message: any, type: string }
 	onclose: (ev: CloseEvent) => void | null; // { target: WebSocket, wasClean: boolean, code: number, reason: string; }
-	//onmessage: (ev: MessageEvent<I>) => void | null; // { target: WebSocket, data: any, type: string }
+  onmessage(ev: MessageEvent<DataBuf<I>>): void | null // { target: WebSocket, data: any, type: string }
 	wsmessage: (buf: DataBuf<I>) => void | null; // from downstream: bytes encoding my INPUT proto
 }
 
@@ -41,7 +41,7 @@ export interface PbParser<T extends pbMessage> {
 /** WebSocketDriver that can be linked by an upstream driver */
 export interface UpstreamDrivable<O extends pbMessage> {
   /** set upstream driver, send bytes upstream */
-  connect(wsd: WebSocketEventHandler<O>): void
+  connectUpStream(wsd: WebSocketEventHandler<O>): void
   closeStream(code: CLOSE_CODE, reason: string): void
   sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void; // process message from upstream 
   //wsmessage: (buf: DataBuf<I>) => void | null; // process message coming from downstream
@@ -50,5 +50,5 @@ export interface UpstreamDrivable<O extends pbMessage> {
 /** Generic [web] socket driver, pass message up-/down-stream to a connected WSD. */
 export interface WebSocketDriver<I extends pbMessage, O extends pbMessage>
   extends WebSocketEventHandler<I>, UpstreamDrivable<O> {
-  connectToStream(dnstream: UpstreamDrivable<I>): this
+  connectDnStream(dnstream: UpstreamDrivable<I>): this
 }

@@ -215,6 +215,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       case CgType.none: {
         this.eval_none(message)
       }
+      default: {
+        console.log(stime(), "CgBase: message has no CgType: ", message)
+      }
     }
   }
   /**
