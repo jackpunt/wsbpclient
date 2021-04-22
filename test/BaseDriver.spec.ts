@@ -1,5 +1,5 @@
 import { BaseDriver, WebSocketBase } from '../src/BaseDriver'
-import { DataBuf, stime, EzPromise, pbMessage, CLOSE_CODE, READY_STATE} from '../src/types'
+import { DataBuf, stime, EzPromise, pbMessage, CLOSE_CODE, READY_STATE, AWebSocket} from '../src/types'
 import { CgClient } from '../src/CgClient'
 import wsWebSocket = require('ws')
 import { CgMessage, CgType } from '../src/CgProto'
@@ -13,20 +13,21 @@ const echourl = "wss://game7.thegraid.com:8443"
 var testTimeout = 3000;
 class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
-  connectws(ws: wsWebSocket | string) {
+  connectws(ws: AWebSocket | string) {
     if (typeof (ws) === 'string') {
       let url = ws;
-      ws = new wsWebSocket(url); // TODO: handle failure of URL or connection
-      ws.binaryType = "arraybuffer";
+      let wss = new wsWebSocket(url); // TODO: handle failure of URL or connection
+      wss.binaryType = "arraybuffer";
 
-      ws.addEventListener("message", (ev: { data: any, type: string, target: wsWebSocket }) => {
+      wss.addEventListener("message", (ev: { data: any, type: string, target: wsWebSocket }) => {
         //console.log("message event received:", { type: ev.type, data: ev.data })
         this.wsmessage(ev.data)
       })
+      ws = wss as unknown as AWebSocket;  // may be null
     }
     this.ws = ws;  // may be null
   }
-  get wss() {return this.ws as wsWebSocket}
+  get wss() {return this.ws as unknown  as wsWebSocket}
 }
 
 class TestCgClient<O extends pbMessage> extends CgClient<O> {

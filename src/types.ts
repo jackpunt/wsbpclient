@@ -1,6 +1,5 @@
 import * as moment from 'moment';
 import type * as jspb from 'google-protobuf';
-import type wsWebSocket = require('ws')
 export { EzPromise } from '@thegraid/ezpromise';
 
 export interface pbMessage extends jspb.Message {}
@@ -20,7 +19,7 @@ export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "C
 
 /** a bytearray that decodes to type T */
 export type DataBuf<T> = Uint8Array
-export type AWebSocket = WebSocket | wsWebSocket
+export type AWebSocket = WebSocket
 
 export const fmt = "YYYY-MM-DD kk:mm:ss.SSS"
 export function stime () { return moment().format(fmt) }
