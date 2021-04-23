@@ -1,24 +1,27 @@
-import * as $wsWebSocket from "ws";
+import * as ws$WebSocket from "ws";
 
 /** 
  * a WebSocket implemented as a wrapper around a ws.WebSocket.
- * suitable for mocking a browse WebSocket when running on Node.js (jest'ing)
+ * 
+ * Suitable for mocking a browser WebSocket when running on Node.js (jest'ing)
  */
 export class wsWebSocket implements WebSocket {
-  get binaryType(): BinaryType { return this.wss.binaryType as "arraybuffer" | "blob"};
-  get bufferedAmount(): number {return this.wss.bufferedAmount};
-  get extensions(): string {return this.wss.extensions};
-  get protocol(): string { return this.wss.protocol};
+  get binaryType(): BinaryType { return this.wss.binaryType as "arraybuffer" | "blob" };
+  get bufferedAmount(): number { return this.wss.bufferedAmount };
+  get extensions(): string { return this.wss.extensions };
+  get protocol(): string { return this.wss.protocol };
   get readyState(): number { return this.wss.readyState };
   get url(): string { return this.wss.url };
-  onclose: (this: WebSocket, ev: CloseEvent) => any 
-    = function(this: WebSocket, ev: CloseEvent):any { (this as wsWebSocket).wss.onclose(ev as any as $wsWebSocket.CloseEvent);};
-  onerror: (this: WebSocket, ev: Event) => any 
-    = function(this, ev) { (this as wsWebSocket).wss.onerror(ev as any as $wsWebSocket.ErrorEvent) };
-  onmessage: (this: WebSocket, ev: MessageEvent<any>) => any
-    = function(this, ev) { (this as wsWebSocket).wss.onmessage(ev.data) };
-  onopen: (this: WebSocket, ev: Event) => any 
-    = function(this: WebSocket, ev: Event) {return (this as wsWebSocket).wss.onopen(ev as any as $wsWebSocket.OpenEvent)};
+  onclose: (this: WebSocket, ev: CloseEvent) => any
+    = function (this: WebSocket, ev: CloseEvent): any { (this as wsWebSocket).wss.onclose(ev as any as ws$WebSocket.CloseEvent); };
+  onerror: (this: WebSocket, ev: Event) => any
+    = function (this, ev) { (this as wsWebSocket).wss.onerror(ev as any as ws$WebSocket.ErrorEvent) };
+  onmessage: (this: WebSocket, ev: MessageEvent<Uint8Array>) => any
+    = function (this, ev) { 
+      (this as wsWebSocket).wss.onmessage({type: ev.type, data: ev.data, target: (this as wsWebSocket).wss } as ws$WebSocket.MessageEvent) 
+    };
+  onopen: (this: WebSocket, ev: Event) => any
+    = function (this: WebSocket, ev: Event) { return (this as wsWebSocket).wss.onopen(ev as any as ws$WebSocket.OpenEvent) };
   close(code?: number, reason?: string): void { this.wss.close(code, reason) };
   send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
     this.wss.send(data)
@@ -40,18 +43,11 @@ export class wsWebSocket implements WebSocket {
   dispatchEvent(event: Event): boolean {
     return this.wss.emit(event.type)
   }
-  wss: $wsWebSocket
+  wss: ws$WebSocket
   ws: WebSocket
-  constructor(url: string | URL) {
-    this.wss = new $wsWebSocket(url)
+  constructor(url: string) {
+    this.wss = new ws$WebSocket(url)
     this.wss.binaryType = 'arraybuffer';
     this.ws = this
   }
 }
-
-// export class xwsWebSocket extends $wsWebSocket {
-//   dispatchEvent(event: Event): boolean {
-//     return (this as xwsWebSocket).emit(event.type)
-//   }
-//   binaryType: BinaryType;
-// }

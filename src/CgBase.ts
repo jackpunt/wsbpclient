@@ -2,6 +2,7 @@ import { BaseDriver } from "./BaseDriver";
 import { AWebSocket, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
 import { CgMessage, CgType } from "./CgProto";
 
+// https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {
   interface CgMessage {
     expectsAck(): boolean 

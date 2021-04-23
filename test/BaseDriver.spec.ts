@@ -1,53 +1,55 @@
-import { BaseDriver, WebSocketBase } from '../src/BaseDriver'
-import { DataBuf, stime, EzPromise, pbMessage, CLOSE_CODE, READY_STATE, AWebSocket} from '../src/types'
+import { WebSocketBase } from '../src/BaseDriver'
+import { DataBuf, stime, EzPromise, pbMessage, CLOSE_CODE, AWebSocket} from '../src/types'
 import { CgClient } from '../src/CgClient'
-import wsWebSocket = require('ws')
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
+import { wsWebSocket } from './wsWebSocket'
 
-var readyState = (wss: wsWebSocket): string => {
+var readyState = (wss: WebSocket): string => {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][wss.readyState]
 }
 var testTimeout = 3000;
 
 const echourl = "wss://game7.thegraid.com:8443"
-
-
+/**
+ * A WebSocketBase that uses wsWebSocket for a WebSocket.
+ * 
+ * Suitable for jest/node.js while testing without a browser WebSocket.
+ */
 class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
   url: string
   cnx_time = 1000;
 
-  connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<wsWebSocket>, closeP?: EzPromise<CloseInfo>) {
+  connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<WebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
       let url: string = this.url = ws;
       let wss = new wsWebSocket(url); // TODO: handle failure of URL or connection
-      ws = (wss as unknown as AWebSocket);  // wss is *mostly* AWebSocket
+      ws = wss;  // wss is *mostly* AWebSocket
     }
     this.ws = ws;  // may be null
-    this.wss.binaryType = "arraybuffer";
 
     // fwd message.data from wss<wsWebSocket> to BaseDriver:
-    this.wss.onmessage = (ev: wsWebSocket.MessageEvent) => {
-      this.wsmessage((ev as {type: 'message', target: wsWebSocket, data: Uint8Array}).data)
+    this.wss.onmessage = (ev) => {
+      this.wsmessage((ev as {type: 'message', target: any, data: Uint8Array}).data)
     }
 
-    this.wss.on('error', (ev: Event) => {
+    this.ws.addEventListener('error', (ev: Event) => {
       console.log(stime(), "wss error:", ev)
       closeP.fulfill(close_fail)
     })
 
-    this.wss.on('open', () => {
+    this.ws.addEventListener('open', () => {
       console.log(stime(), "wss connected & open!   openP.fulfill(wss)")
-      openP.fulfill(this.wss)
+      openP.fulfill(this.ws)
       setTimeout(() => {
         console.log(stime(), 'Ok to Close: fulfill("timeout") = ', this.cnx_time)
         okToClose.fulfill("timeout")
       }, this.cnx_time)
     })
   }
-  /** cast this.ws to wsWebSocket */
-  get wss() { return this.ws as unknown as wsWebSocket }
+  /** the wrapped ws$WebSocket: ws.WebSocket */
+  get wss() { return (this.ws as wsWebSocket).wss  }
 }
 
 class TestCgClient<O extends pbMessage> extends CgClient<O> {
@@ -66,31 +68,27 @@ class TestCgClient<O extends pbMessage> extends CgClient<O> {
     super.eval_ack(ack, req)
   }
 }
-let configWebSocket = (wsbase: TestSocketBase<pbMessage, pbMessage>) => {
-  var wsopts: wsWebSocket.ClientOptions
-  //wsbase.connectws(echourl)
-  let wss = wsbase.wss
-}
+
 var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
 var wsbase = new TestSocketBase<pbMessage, pbMessage>()
 
 test("WebSocketBase.construct & connectws", () => {
   expect(wsbase).toBeInstanceOf(WebSocketBase)
   console.log(stime(), "try connect to echourl", echourl)
-  wsbase.connectWebSocket(echourl, cnxOpen, closeP)
+  wsbase.connectWebSocket(echourl, openP, closeP)
   expect(wsbase.ws).toBeInstanceOf(wsWebSocket)
-  console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.wss))
+  console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.ws))
   pwsbase.fulfill(wsbase)
-  setTimeout(() => cnxOpen.reject("timeout"), 500); // is moot if alaready connected
+  setTimeout(() => openP.reject("timeout"), 500); // is moot if alaready connected
 })
 
-var cnxOpen = new EzPromise<wsWebSocket>()
-cnxOpen.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
+var openP = new EzPromise<WebSocket>()
+openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
 
 var okToClose = new EzPromise<string>()
 
 test("WebSocket connected & OPEN", () => {
-  return cnxOpen.then((wss) => {
+  return openP.then((wss) => {
     expect(wss).toBeInstanceOf(wsWebSocket)
     expect(wss.readyState).toBe(wss.OPEN)
   }, (rej) => {
@@ -127,8 +125,8 @@ test("wss.message received", done => {
   pwsbase.then((wsbase) => {
     let nth = 0;
     let event_message: MessageEvent
-    wsbase.wss.addEventListener("message", (ev: MessageEvent) => {
-      event_message = ev
+    wsbase.wss.addEventListener("message", function(this, ev) {
+      event_message = ev as {data: DataBuf<CgMessage>, type: string, target: any}
       expect(event_message.data).toBeTruthy()
       let data = event_message.data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
@@ -168,7 +166,7 @@ describe("Closing", () => {
     return okToClose.finally(() => {
       console.log(stime(), "try close client:", okToClose.value)
       wsbase.wss.addEventListener("close", (ev) => {
-        console.log(stime(), "closeStream:", readyState(wsbase.wss), ev.reason)
+        console.log(stime(), "closeStream:", readyState(wsbase.ws), ev.reason)
         closeP.fulfill(close_normal)
       })
       try {
@@ -183,7 +181,7 @@ describe("Closing", () => {
   test("BaseDriver.client closed", done => {
     closeP.then((info: CloseInfo) => {
       let { code, reason } = info
-      console.log(stime(), "client closed:", info, readyState(wsbase.wss))
+      console.log(stime(), "client closed:", info, readyState(wsbase.ws))
       if (code == close_fail.code) {
         expect(reason).toBe(close_fail.reason)
       } else {
