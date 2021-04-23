@@ -16,44 +16,45 @@ const echourl = "wss://game7.thegraid.com:8443"
 class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
   url: string
+  cnx_time = 1000;
+
   connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<wsWebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
-      let cnx_time = 1000;
-      let url = this.url = ws;
+      let url: string = this.url = ws;
       let wss = new wsWebSocket(url); // TODO: handle failure of URL or connection
-      wss.binaryType = "arraybuffer";
-
-      wss.on('error', (ev: Event) => {
-        console.log(stime(), "wss error:", ev)
-        closeP.fulfill(close_fail)
-      })
-
-      wss.on('open', () => {
-        console.log(stime(), "wss connected & open!   openP.fulfill(wss)")
-        openP.fulfill(wss)
-        setTimeout(() => {
-          console.log(stime(), 'Ok to Close: fulfill("timeout") = ', cnx_time)
-          okToClose.fulfill("timeout")
-        }, cnx_time)
-      })
-
-      // fwd message.data from this<wsWebSocket> to BaseDriver:
-      wss.on('message', (data: DataBuf<pbMessage>) => {
-        //console.log("message event received:", { type: ev.type, data: ev.data })
-        this.wsmessage(data)
-      })
-      ws = wss as unknown as AWebSocket;  // may be null
+      ws = (wss as unknown as AWebSocket);  // wss is *mostly* AWebSocket
     }
     this.ws = ws;  // may be null
+    this.wss.binaryType = "arraybuffer";
+
+    // fwd message.data from wss<wsWebSocket> to BaseDriver:
+    this.wss.onmessage = (ev: wsWebSocket.MessageEvent) => {
+      this.wsmessage((ev as {type: 'message', target: wsWebSocket, data: Uint8Array}).data)
+    }
+
+    this.wss.on('error', (ev: Event) => {
+      console.log(stime(), "wss error:", ev)
+      closeP.fulfill(close_fail)
+    })
+
+    this.wss.on('open', () => {
+      console.log(stime(), "wss connected & open!   openP.fulfill(wss)")
+      openP.fulfill(this.wss)
+      setTimeout(() => {
+        console.log(stime(), 'Ok to Close: fulfill("timeout") = ', this.cnx_time)
+        okToClose.fulfill("timeout")
+      }, this.cnx_time)
+    })
   }
-  get wss() {return this.ws as unknown  as wsWebSocket}
+  /** cast this.ws to wsWebSocket */
+  get wss() { return this.ws as unknown as wsWebSocket }
 }
 
 class TestCgClient<O extends pbMessage> extends CgClient<O> {
-  wsmessage(data: DataBuf<O>) {
-    console.log(stime(), "TestCgClient.wsmessage data=", data)
-    super.wsmessage(data)
-  }
+  // wsmessage(data: DataBuf<O>) {
+  //   console.log(stime(), "TestCgClient.wsmessage data=", data)
+  //   super.wsmessage(data)
+  // }
   msgPromiseByType: Record<string, AckPromise> = {}
   sendToSocket(message: CgMessage): AckPromise {
     let rv = super.sendToSocket(message)

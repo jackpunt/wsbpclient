@@ -117,7 +117,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       ws = new WebSocket(url); // TODO: handle failure of URL or connection
       ws.binaryType = "arraybuffer";
       // for outbound/browser client connections, use WebSocket interface directly:
-      // tell downstream ws to invoke our upstream handlers:
+      // tell [downstream] WebSocket to invoke [upstream] BaseDriver handlers:
       // this [essentially/actually] adds our methods as EventListener('type')
       ws.onopen = this.onopen;
       ws.onerror = this.onerror;
