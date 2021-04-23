@@ -260,6 +260,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /** informed that [other] client has departed */
   eval_leave(message: CgMessage): void {
     console.log(stime(), "CgBase.leave:", message)
+    // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // booted from group! (or i'm the ref[0] and everyone else has gone)
       this.sendAck("leaving", { group: this.group_name })

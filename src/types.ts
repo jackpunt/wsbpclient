@@ -1,4 +1,4 @@
-import * as moment from 'moment';
+import moment = require('moment');
 import type * as jspb from 'google-protobuf';
 export { EzPromise } from '@thegraid/ezpromise';
 

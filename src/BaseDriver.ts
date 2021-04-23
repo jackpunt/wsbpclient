@@ -119,6 +119,8 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       // for outbound/browser client connections, use WebSocket interface directly:
       // tell [downstream] WebSocket to invoke [upstream] BaseDriver handlers:
       // this [essentially/actually] adds our methods as EventListener('type')
+    }
+    if (!!ws ) { // (ws instanceof WebSocket) hangs!
       ws.onopen = this.onopen;
       ws.onerror = this.onerror;
       ws.onclose = this.onclose;

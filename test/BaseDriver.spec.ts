@@ -3,10 +3,10 @@ import { DataBuf, stime, EzPromise, pbMessage, CLOSE_CODE, AWebSocket} from '../
 import { CgClient } from '../src/CgClient'
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
-import { wsWebSocket } from './wsWebSocket'
+import { wsWebSocket, ws } from './wsWebSocket'
 
-var readyState = (wss: WebSocket): string => {
-  return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][wss.readyState]
+var readyState = (ws: WebSocket): string => {
+  return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
 }
 var testTimeout = 3000;
 
@@ -24,23 +24,22 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
   connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<WebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
       let url: string = this.url = ws;
-      let wss = new wsWebSocket(url); // TODO: handle failure of URL or connection
-      ws = wss;  // wss is *mostly* AWebSocket
+      ws = new wsWebSocket(url); // TODO: handle failure of URL or connection
     }
-    this.ws = ws;  // may be null
-
+    super.connectWebSocket(ws)
+    // there are no DOM Events for ws.onmessage(Event), so get invocation from this.wss:
     // fwd message.data from wss<wsWebSocket> to BaseDriver:
-    this.wss.onmessage = (ev) => {
-      this.wsmessage((ev as {type: 'message', target: any, data: Uint8Array}).data)
+    this.wss.onmessage = (ev: ws.MessageEvent) => {
+      this.wsmessage(ev.data as Buffer) // assert wss.binaryType === 'arraybuffer'
     }
 
     this.ws.addEventListener('error', (ev: Event) => {
-      console.log(stime(), "wss error:", ev)
+      console.log(stime(), "ws error:", ev)
       closeP.fulfill(close_fail)
     })
 
     this.ws.addEventListener('open', () => {
-      console.log(stime(), "wss connected & open!   openP.fulfill(wss)")
+      console.log(stime(), "ws connected & open!   openP.fulfill(ws)")
       openP.fulfill(this.ws)
       setTimeout(() => {
         console.log(stime(), 'Ok to Close: fulfill("timeout") = ', this.cnx_time)
@@ -88,9 +87,9 @@ openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
 var okToClose = new EzPromise<string>()
 
 test("WebSocket connected & OPEN", () => {
-  return openP.then((wss) => {
-    expect(wss).toBeInstanceOf(wsWebSocket)
-    expect(wss.readyState).toBe(wss.OPEN)
+  return openP.then((ws) => {
+    expect(ws).toBeInstanceOf(wsWebSocket)
+    expect(ws.readyState).toBe(ws.OPEN);
   }, (rej) => {
     console.log("WebSocket connection rejected", rej)
     okToClose.fulfill("no websocket connection")
@@ -106,9 +105,9 @@ var pMsg0: AckPromise // from send_join
 var pMsg1: AckPromise // from send_ack (resolved && value === undefined)
 
 var cgclient: CgClient<pbMessage> = new TestCgClient();
-test("CgClient.connectToStream", () => {
+test("CgClient.connectDnStream", () => {
   return pwsbase.finally(() => {
-    console.log(stime(), "try cgclient.connectToStream")
+    console.log(stime(), "try cgclient.connectDnStream")
     cgclient.connectDnStream(wsbase)
     expect(cgclient.dnstream).toBe(wsbase)
     expect(wsbase.upstream).toBe(cgclient)
@@ -119,16 +118,12 @@ test("CgClient.connectToStream", () => {
   })
 })
 
-type MessageEvent = { data: any, type: string, target: wsWebSocket }
-
 test("wss.message received", done => {
   pwsbase.then((wsbase) => {
     let nth = 0;
-    let event_message: MessageEvent
-    wsbase.wss.addEventListener("message", function(this, ev) {
-      event_message = ev as {data: DataBuf<CgMessage>, type: string, target: any}
-      expect(event_message.data).toBeTruthy()
-      let data = event_message.data as DataBuf<CgMessage>
+    wsbase.ws.addEventListener("message", function(this: WebSocket, ev: MessageEvent<ArrayBuffer>) {
+      expect(ev.data).toBeInstanceOf(ArrayBuffer)
+      let data = ev.data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
       console.log(stime(), "wss.message received", ++nth, cgm)
       expect([CgType.join, CgType.ack]).toContain(cgm.type) // in that order...
@@ -165,7 +160,7 @@ describe("Closing", () => {
   test("BaseDriver.close client", () => {
     return okToClose.finally(() => {
       console.log(stime(), "try close client:", okToClose.value)
-      wsbase.wss.addEventListener("close", (ev) => {
+      wsbase.ws.addEventListener("close", (ev) => {
         console.log(stime(), "closeStream:", readyState(wsbase.ws), ev.reason)
         closeP.fulfill(close_normal)
       })
@@ -198,7 +193,7 @@ describe("Closing", () => {
 
   test("BaseDriver.verify closed", done => {
     closeP.finally(() => {
-      expect(wsbase.wss.readyState === wsbase.wss.CLOSED)
+      expect(wsbase.ws.readyState === wsbase.ws.CLOSED)
       setTimeout(() => done(), 100)
     })
   })

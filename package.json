@@ -15,7 +15,7 @@
     "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles",
     "test": "jest --runInBand --force-exit --verbose",
     "tsc-options": "are configured in tsconfig.json",
-    "tsc": "tsc",
+    "tsc": "tsc --esModuleInterop",
     "clean": "rm -f dist/out-tsc/*",
     "build": "npm run clean; npm run protots; npm run patch; npm run tsc"
   },
