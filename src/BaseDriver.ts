@@ -1,7 +1,7 @@
 import type { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE } from "./types";
 
 /**
- * Stack drivers above a websocket.
+ * Stackable drivers to move pbMessages up/down from/to websocket.
  * I (INNER) is closer to the websocket, aka downstream
  * O (OUTER) is closer to the application, aka upstream
  * 
@@ -61,7 +61,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
 
   /** process data from upstream by passing it downsteam. */
-  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void {
+  sendBuffer(data: DataBuf<O>): void {
     this.dnstream.sendBuffer(data)
   }
   /** process close by sending it upstream */
@@ -130,7 +130,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   }
 
   /** process data from upstream by passing it downsteam. */
-  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void {
+  sendBuffer(data: DataBuf<O>): void {
     this.ws.send(data)
   }
 

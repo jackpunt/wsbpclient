@@ -16,7 +16,11 @@ export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "C
 // CLOSING = 2
 // CLOSED = 3
 
-
+export type minWebSocket = {
+  send: (data:any)=>void, 
+  close: (code?: number, data?: string)=>void, 
+  addEventListener: (method: string, listener: (event?: Event) => void) => void
+}
 /** a bytearray that decodes to type T */
 export type DataBuf<T> = Uint8Array
 export type AWebSocket = WebSocket
@@ -43,7 +47,7 @@ export interface UpstreamDrivable<O extends pbMessage> {
   /** set upstream driver, send bytes upstream */
   connectUpStream(wsd: WebSocketEventHandler<O>): void
   closeStream(code: CLOSE_CODE, reason: string): void
-  sendBuffer(data: DataBuf<O>, ecb?: (error: Event | Error) => void): void; // process message from upstream 
+  sendBuffer(data: DataBuf<O>): void; // process message from upstream 
   //wsmessage: (buf: DataBuf<I>) => void | null; // process message coming from downstream
 }
 

@@ -1,5 +1,4 @@
 import ws$WebSocket = require("ws");
-import { stime } from "../src/types";
 
 export { wsWebSocket, ws$WebSocket as ws }
 

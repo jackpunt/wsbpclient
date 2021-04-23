@@ -109,10 +109,11 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage): AckPromise {
     let ackPromise = new AckPromise(message)
     let bytes = message.serializeBinary()
+    // TODO: reimplement so this does something useful
     let reject_on_error = (error: Error | Event) => {
       ackPromise.reject((error as Error).message || (error as Event).type)
     }
-    this.sendBuffer(bytes, reject_on_error) // send message to socket
+    this.sendBuffer(bytes) // send message to socket
     if (!message.expectsAck() && !ackPromise.resolved) {
       ackPromise.fulfill(undefined) // no Ack is coming
     } else {

@@ -21,7 +21,7 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
   url: string
   cnx_time = 1000;
 
-  connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<WebSocket>, closeP?: EzPromise<CloseInfo>) {
+  connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<AWebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
       let url: string = this.url = ws;
       ws = new wsWebSocket(url); // TODO: handle failure of URL or connection
@@ -81,7 +81,7 @@ test("WebSocketBase.construct & connectws", () => {
   setTimeout(() => openP.reject("timeout"), 500); // is moot if alaready connected
 })
 
-var openP = new EzPromise<WebSocket>()
+var openP = new EzPromise<AWebSocket>()
 openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
 
 var okToClose = new EzPromise<string>()
