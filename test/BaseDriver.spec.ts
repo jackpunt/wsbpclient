@@ -11,6 +11,8 @@ var readyState = (ws: WebSocket): string => {
 var testTimeout = 3000;
 
 const echourl = "wss://game7.thegraid.com:8443"
+const cgservurl = "wss://game7.thegraid.com:8444"
+const testurl = cgservurl;
 /**
  * A WebSocketBase that uses wsWebSocket for a WebSocket.
  * 
@@ -73,8 +75,8 @@ var wsbase = new TestSocketBase<pbMessage, pbMessage>()
 
 test("WebSocketBase.construct & connectws", () => {
   expect(wsbase).toBeInstanceOf(WebSocketBase)
-  console.log(stime(), "try connect to echourl", echourl)
-  wsbase.connectWebSocket(echourl, openP, closeP)
+  console.log(stime(), "try connect to echourl", testurl)
+  wsbase.connectWebSocket(testurl, openP, closeP)
   expect(wsbase.ws).toBeInstanceOf(wsWebSocket)
   console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.ws))
   pwsbase.fulfill(wsbase)
