@@ -16,61 +16,92 @@ export class CgMessage extends pb_1.Message {
         cause?: string;
     }) {
         super();
-        pb_1.Message.initialize(this, Array.isArray(data) && data, 0, -1, [], null);
+        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], []);
         if (!Array.isArray(data) && typeof data == "object") {
-            this.type = data.type;
-            this.client_id = data.client_id;
-            this.success = data.success;
-            this.msg = data.msg;
-            this.group = data.group;
-            this.cause = data.cause;
+            if ("type" in data) {
+                this.type = data.type;
+            }
+            if ("client_id" in data) {
+                this.client_id = data.client_id;
+            }
+            if ("success" in data) {
+                this.success = data.success;
+            }
+            if ("msg" in data) {
+                this.msg = data.msg;
+            }
+            if ("group" in data) {
+                this.group = data.group;
+            }
+            if ("cause" in data) {
+                this.cause = data.cause;
+            }
         }
     }
-    get type(): CgType {
-        return pb_1.Message.getFieldWithDefault(this, 1, undefined) as CgType;
+    get type() {
+        return pb_1.Message.getField(this, 1) as CgType;
     }
     set type(value: CgType) {
         pb_1.Message.setField(this, 1, value);
     }
-    get client_id(): number {
-        return pb_1.Message.getFieldWithDefault(this, 2, undefined) as number;
+    get client_id() {
+        return pb_1.Message.getField(this, 2) as number;
     }
     set client_id(value: number) {
         pb_1.Message.setField(this, 2, value);
     }
-    get success(): boolean {
-        return pb_1.Message.getFieldWithDefault(this, 3, undefined) as boolean;
+    get success() {
+        return pb_1.Message.getField(this, 3) as boolean;
     }
     set success(value: boolean) {
         pb_1.Message.setField(this, 3, value);
     }
-    get msg(): Uint8Array {
-        return pb_1.Message.getFieldWithDefault(this, 4, undefined) as Uint8Array;
+    get msg() {
+        return pb_1.Message.getField(this, 4) as Uint8Array;
     }
     set msg(value: Uint8Array) {
         pb_1.Message.setField(this, 4, value);
     }
-    get group(): string {
-        return pb_1.Message.getFieldWithDefault(this, 5, undefined) as string;
+    get group() {
+        return pb_1.Message.getField(this, 5) as string;
     }
     set group(value: string) {
         pb_1.Message.setField(this, 5, value);
     }
-    get cause(): string {
-        return pb_1.Message.getFieldWithDefault(this, 6, undefined) as string;
+    get cause() {
+        return pb_1.Message.getField(this, 6) as string;
     }
     set cause(value: string) {
         pb_1.Message.setField(this, 6, value);
     }
     toObject() {
-        return {
-            type: this.type,
-            client_id: this.client_id,
-            success: this.success,
-            msg: this.msg,
-            group: this.group,
-            cause: this.cause
-        };
+        var data: {
+            type?: CgType;
+            client_id?: number;
+            success?: boolean;
+            msg?: Uint8Array;
+            group?: string;
+            cause?: string;
+        } = {};
+        if (this.type != null) {
+            data.type = this.type;
+        }
+        if (this.client_id != null) {
+            data.client_id = this.client_id;
+        }
+        if (this.success != null) {
+            data.success = this.success;
+        }
+        if (this.msg != null) {
+            data.msg = this.msg;
+        }
+        if (this.group != null) {
+            data.group = this.group;
+        }
+        if (this.cause != null) {
+            data.cause = this.cause;
+        }
+        return data;
     }
     serialize(w?: pb_1.BinaryWriter): Uint8Array | undefined {
         const writer = w || new pb_1.BinaryWriter();
@@ -90,7 +121,6 @@ export class CgMessage extends pb_1.Message {
             return writer.getResultBuffer();
         return undefined;
     }
-    serializeBinary(): Uint8Array { return this.serialize(); }
     static deserialize(bytes: Uint8Array | pb_1.BinaryReader): CgMessage {
         const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new CgMessage();
         while (reader.nextField()) {
@@ -119,5 +149,11 @@ export class CgMessage extends pb_1.Message {
             }
         }
         return message;
+    }
+    serializeBinary(): Uint8Array {
+        return this.serialize();
+    }
+    static deserializeBinary(bytes: Uint8Array): CgMessage {
+        return CgMessage.deserialize(bytes);
     }
 }

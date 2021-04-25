@@ -1,0 +1,8 @@
+# Angular .component.html files are not parsed by current .elsintrc.js settings
+**/*.html
+# polyfills.ts is not mine to fix/change
+**/polyfills.ts
+# ignore protoc generated files:
+**/*Proto.ts
+# also ignore the .proto files, although that may be implicit
+**/*.proto
