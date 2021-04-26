@@ -7,9 +7,8 @@
     "lib"
   ],
   "scripts": {
-    "patch-return": "replace 'return writer.getResultBuffer();' 'return writer.getResultBuffer();\n        return undefined;' -- src/*Proto.ts",
     "patch-reader": "replace -s 'Uint8Array ? new pb_1.BinaryReader(bytes) : bytes' 'pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes)' --  src/*Proto.ts",
-    "patch": "npm run patch-reader; npm run patch-return; npm run patch-serial",
+    "patch": "npm run patch-reader",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
     "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles",
     "test": "jest --runInBand --force-exit --verbose",
