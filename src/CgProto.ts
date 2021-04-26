@@ -14,27 +14,31 @@ export class CgMessage extends pb_1.Message {
         msg?: Uint8Array;
         group?: string;
         cause?: string;
+        nocc?: boolean;
     }) {
         super();
         pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], []);
         if (!Array.isArray(data) && typeof data == "object") {
-            if ("type" in data) {
+            if ("type" in data && data.type != undefined) {
                 this.type = data.type;
             }
-            if ("client_id" in data) {
+            if ("client_id" in data && data.client_id != undefined) {
                 this.client_id = data.client_id;
             }
-            if ("success" in data) {
+            if ("success" in data && data.success != undefined) {
                 this.success = data.success;
             }
-            if ("msg" in data) {
+            if ("msg" in data && data.msg != undefined) {
                 this.msg = data.msg;
             }
-            if ("group" in data) {
+            if ("group" in data && data.group != undefined) {
                 this.group = data.group;
             }
-            if ("cause" in data) {
+            if ("cause" in data && data.cause != undefined) {
                 this.cause = data.cause;
+            }
+            if ("nocc" in data && data.nocc != undefined) {
+                this.nocc = data.nocc;
             }
         }
     }
@@ -74,6 +78,12 @@ export class CgMessage extends pb_1.Message {
     set cause(value: string) {
         pb_1.Message.setField(this, 6, value);
     }
+    get nocc() {
+        return pb_1.Message.getField(this, 7) as boolean;
+    }
+    set nocc(value: boolean) {
+        pb_1.Message.setField(this, 7, value);
+    }
     toObject() {
         var data: {
             type?: CgType;
@@ -82,6 +92,7 @@ export class CgMessage extends pb_1.Message {
             msg?: Uint8Array;
             group?: string;
             cause?: string;
+            nocc?: boolean;
         } = {};
         if (this.type != null) {
             data.type = this.type;
@@ -101,6 +112,9 @@ export class CgMessage extends pb_1.Message {
         if (this.cause != null) {
             data.cause = this.cause;
         }
+        if (this.nocc != null) {
+            data.nocc = this.nocc;
+        }
         return data;
     }
     serialize(w?: pb_1.BinaryWriter): Uint8Array | undefined {
@@ -117,9 +131,10 @@ export class CgMessage extends pb_1.Message {
             writer.writeString(5, this.group);
         if (typeof this.cause === "string" && this.cause.length)
             writer.writeString(6, this.cause);
+        if (this.nocc !== undefined)
+            writer.writeBool(7, this.nocc);
         if (!w)
             return writer.getResultBuffer();
-        return undefined;
     }
     static deserialize(bytes: Uint8Array | pb_1.BinaryReader): CgMessage {
         const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new CgMessage();
@@ -144,6 +159,9 @@ export class CgMessage extends pb_1.Message {
                     break;
                 case 6:
                     message.cause = reader.readString();
+                    break;
+                case 7:
+                    message.nocc = reader.readBool();
                     break;
                 default: reader.skipField();
             }

@@ -23,8 +23,9 @@ export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
 //function create<Type>(c: { new (): Type }): Type { return new c(); }
 
 /** 
- * EzPromise\<CgMessage\> which holds the actual message that was sent. 
- * (AckPromise.resolved && AckPromise.value) === undefined for AckPromise.message.type 
+ * EzPromise\<CgMessage\> which holds the actual message that was sent.  
+ * If (!this.message.expectsAck) then 
+ *    (AckPromise.resolved && AckPromise.value) === undefined
  */
 export class AckPromise extends EzPromise<CgMessage> {
   constructor(public message: CgMessage, def = (ful, rej) => { }) {
@@ -55,7 +56,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   deserialize(bytes: DataBuf<CgMessage>): CgMessage  {
     return CgMessage.deserialize(bytes)
   }
-  /** deserialize && parseEval(message) */
+  /** deserialize && parseEval(message) 
+   * @override
+   */
   wsmessage(data: DataBuf<CgMessage>) {
     let message = CgMessage.deserialize(data)
     this.parseEval(message)    
@@ -137,7 +140,6 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   send_send(message: O, client_id?: number): AckPromise {
     let promise = this.sendWrapped(message, client_id)
-    promise.then((ack) => {}, (nak) => {})
     return promise
   }
   /**
@@ -274,18 +276,19 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * Process message delivered to Client-Group.
    * 
    * For CgServerCnx: override to sendToGroup()
-   * else server would parseEval on behalf of the client...? [if it has inner_msg_handler]
+   * else server would parseEval on behalf of the client...?
    * 
-   * For CgClient: delegate to inner protocol handler
-   * inner.parseEval(inner.deserialize(message.msg))
+   * For CgClient: delegate to upstream protocol handler
+   * 
    * 
    * @param message containing message<IN>
    * @returns 
    */
   eval_send(message: CgMessage): void {
-    console.log(stime(), "CgBase.send:", message)
-    let data = message.msg
-    this.dnstream
+    if (this.upstream)
+      this.upstream.wsmessage(message.msg)
+    else
+      console.log(stime(), "CgBase.send:", message)
     return
   }
 
