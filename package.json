@@ -15,7 +15,7 @@
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc --esModuleInterop",
     "clean": "rm -f dist/out-tsc/*",
-    "build": "npm run clean; npm run protots; npm run patch; npm run tsc"
+    "build": "npm run clean; npm run protots; npm run patch; npm run tsc; date"
   },
   "repository": {
     "type": "git",
