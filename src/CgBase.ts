@@ -134,12 +134,16 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return this.sendToSocket(cgmsg)
   }
   /**
-   * send wrapped message to socket
+   * send message from upstream to downstream
    * @param message Object containing pbMessage<INNER>
-   * @param client_id send to: 0 is ref; null is Group
+   * @param opts  
+   * client_id: 0 is ref, [null is to Group]  
+   * nocc: true to prevent copy back, [false is cc to sender]  
    */
-  send_send(message: O, client_id?: number): AckPromise {
-    let promise = this.sendWrapped(message, client_id)
+  send_send(message: O, opts?: CgMessageOpts): AckPromise {
+    let msg = message.serializeBinary()
+    let cgmsg: CgMessage = new CgMessage({...opts, type: CgType.send, msg })
+    let promise =  this.sendToSocket(cgmsg)
     return promise
   }
   /**
