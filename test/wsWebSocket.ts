@@ -14,15 +14,15 @@ class wsWebSocket implements WebSocket {
   get protocol(): string { return this.wss.protocol };
   get readyState(): number { return this.wss.readyState };
   get url(): string { return this.wss.url };
-  // dubious casting of Event objects: 
-  // pro'ly there no such 'upstream' event invocations, use addEventListener
-  // or interpose on this.wss to get real events (which we do for onmessage)
-  onclose(ev: CloseEvent) { this.wss.onclose(ev as any as ws$WebSocket.CloseEvent)}
-  onerror(ev: Event)      { this.wss.onerror(ev as any as ws$WebSocket.ErrorEvent)}
-  onopen(ev: Event) { return this.wss.onopen(ev as any as ws$WebSocket.OpenEvent)}
-  onmessage(ev: MessageEvent<Uint8Array>) { 
-    this.wss.onmessage({type: ev.type, data: ev.data, target: this.wss}) //not invoked in Node.js
-  }
+  // Pro-forma methods must be declared; 
+  // There no Event invocations from DOM coming upstream; not even a DOM Event Dispatcher.
+  // because this only run in Node.js; 
+  // Application needs to cast back to ws$WebSocket Event or use .addEventListener()
+  onclose: (ev: CloseEvent) => void;
+  onerror: (ev: Event) => void
+  onopen: (ev: Event) => void
+  onmessage: (ev: MessageEvent<Uint8Array>) => void
+
   // This is the important bit, sending downstream:
   close(code?: number, reason?: string): void { this.wss.close(code, reason) };
   send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
@@ -49,5 +49,11 @@ class wsWebSocket implements WebSocket {
   constructor(url: string) {
     this.wss = new ws$WebSocket(url)
     this.wss.binaryType = 'arraybuffer';
+    // Dubious event casting, but at least you get a signal
+    this.wss.onopen = (ev: ws$WebSocket.OpenEvent) => { this.onopen(ev as any)}
+    this.wss.onclose = (ev: ws$WebSocket.CloseEvent) => { this.onclose(ev as any)}
+    this.wss.onerror = (ev: ws$WebSocket.ErrorEvent) => { this.onerror(ev as any)}
+    this.wss.onmessage = (ev: ws$WebSocket.MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
+    // SocketServerDriver overrides: this.wss.onmessage(ev) => this.wsmessage(ev.data)
   }
 }

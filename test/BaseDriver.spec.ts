@@ -65,7 +65,7 @@ class TestCgClient<O extends pbMessage> extends CgClient<O> {
     return rv
   }
   eval_ack(ack: CgMessage, req: CgMessage) {
-    console.log(stime(), "eval_ack:", ack, "for req", req)
+    console.log(stime(), "eval_ack:", {ack, req})
     super.eval_ack(ack, req)
   }
 }
@@ -123,11 +123,12 @@ test("CgClient.connectDnStream", () => {
 test("wss.message received", done => {
   pwsbase.then((wsbase) => {
     let nth = 0;
+    // for logging advice only; no semantic effect
     wsbase.ws.addEventListener("message", function(this: WebSocket, ev: MessageEvent<ArrayBuffer>) {
       expect(ev.data).toBeInstanceOf(ArrayBuffer)
       let data = ev.data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
-      console.log(stime(), "wss.message received", ++nth, cgm)
+      console.log(stime(), "wss.message received", cgm.cgType, ++nth, cgm)
       expect([CgType.join, CgType.ack]).toContain(cgm.type) // in that order...
       done()
     })
@@ -139,6 +140,7 @@ test("CgClient.send_join acked", () => {
   return pMsgsSent.then((pMsg) => {
     //console.log("send_join acked: pMsg0=", pMsg0, "pMsg1=", pMsg1, "pMsg=", pMsg)
     pMsg0.then((ack_msg_rcvd) => {
+      // client_id fails on second run: we didn't leave, and socket drop does not auto-leave!
       expect(ack_msg_rcvd).toEqual(pMsg1.message) // presumably via serialize/deserialize
       expect(ack_msg_rcvd.success).toBe(true)
       expect(cgclient.group_name).toBe(group_name)

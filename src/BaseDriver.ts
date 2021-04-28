@@ -1,4 +1,4 @@
-import type { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE } from "./types";
+import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime } from "./types";
 
 /**
  * Stackable drivers to move pbMessages up/down from/to websocket.
@@ -10,7 +10,9 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   dnstream: UpstreamDrivable<I>;      // next driver downstream
   upstream: WebSocketEventHandler<O>; // next driver upstream
 
-  /** Connect to downstream Driver */
+  /** Connect to downstream Driver & tell it to connectUpStream to us.  
+   * this.dnstream = dnstream; dnstream.upstream = this
+   */
   connectDnStream(dnstream: UpstreamDrivable<I>): this {
     dnstream.connectUpStream(this)
     this.dnstream = dnstream;
@@ -28,6 +30,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
+    console.log(stime(), "BaseDriver.onopen: upstream.onopen(ev)", this.upstream)
     if (!!this.upstream) this.upstream.onopen(ev)
   };
   /** invoke upstream.onerror(ev) */
@@ -36,19 +39,22 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
+    console.log(stime(), "BaseDriver.onclose: upstream.onclose(ev)", this.upstream)
     if (!!this.upstream) this.upstream.onclose(ev)
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
-    if (!!this.upstream) this.wsmessage(ev.data)
+    console.log(stime(), "BaseDriver.onmessage: this.wsmessage(ev.data)", this.upstream)
+    this.wsmessage(ev.data)
   };
   /**
    * process message from downstream
    * OVERRIDE ME!
    * 
-   * default: passing it directly upstream!  
+   * default: this.upstream.wsmessage(data)  
    */
   wsmessage(data: DataBuf<I>): void {
+    console.log(stime(), "BaseDriver.wsmessage: upstream.wsmessage(data)", this.upstream)
     if (!!this.upstream) this.upstream.wsmessage(data)
   };
 
@@ -121,10 +127,10 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       // this [essentially/actually] adds our methods as EventListener('type')
     }
     if (!!ws ) { // (ws instanceof WebSocket) hangs!
-      ws.onopen = this.onopen;
-      ws.onerror = this.onerror;
-      ws.onclose = this.onclose;
-      ws.onmessage = this.onmessage;
+      ws.onopen = (ev) => this.onopen(ev);
+      ws.onerror = (err) => this.onerror(err);
+      ws.onclose = (ev) => this.onclose(ev);
+      ws.onmessage = (ev) => this.onmessage(ev);
     }
     this.ws = ws;  // may be null
   }
