@@ -25,8 +25,15 @@ export type minWebSocket = {
 export type DataBuf<T> = Uint8Array
 export type AWebSocket = WebSocket
 
+export function className (obj: { constructor: { name: any; }; }): string { 
+  return (obj === undefined) ? 'undefined' : (!!obj && obj.constructor) ? obj.constructor.name : 'no_class'
+}
 export const fmt = "YYYY-MM-DD kk:mm:ss.SSS"
-export function stime () { return moment().format(fmt) }
+export function stime (obj?: { constructor: { name: string; }; }, f?: string) { 
+  let name = obj ? (" "+className(obj)) : ""
+  if (!!f) name = name + f
+  return moment().format(fmt) + name
+}
 
 /** standard HTML [Web]Socket events, for client (& server ws.WebSocket) */
 /** what the downstream invokes/sends_to this [upstream] Driver: */

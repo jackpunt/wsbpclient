@@ -36,15 +36,15 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
     }
 
     this.ws.addEventListener('error', (ev: Event) => {
-      console.log(stime(), "ws error:", ev)
+      console.log(stime(this, "ws error:"), ev)
       closeP.fulfill(close_fail)
     })
 
     this.ws.addEventListener('open', () => {
-      console.log(stime(), "ws connected & open!   openP.fulfill(ws)")
+      console.log(stime(this, "ws connected & open!"), "   openP.fulfill(ws)")
       openP.fulfill(this.ws)
       setTimeout(() => {
-        console.log(stime(), 'Ok to Close: fulfill("timeout") = ', this.cnx_time)
+        console.log(stime(this, "Ok to Close:"), 'fulfill("timeout") = ', this.cnx_time)
         okToClose.fulfill("timeout")
       }, this.cnx_time)
     })
@@ -65,7 +65,8 @@ class TestCgClient<O extends pbMessage> extends CgClient<O> {
     return rv
   }
   eval_ack(ack: CgMessage, req: CgMessage) {
-    console.log(stime(), "eval_ack:", {ack, req})
+    let reqs = req.cgType
+    console.log(stime(this, ".eval_ack"), {ack, reqs, req})
     super.eval_ack(ack, req)
   }
 }

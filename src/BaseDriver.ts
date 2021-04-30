@@ -1,4 +1,4 @@
-import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime } from "./types";
+import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types";
 
 /**
  * Stackable drivers to move pbMessages up/down from/to websocket.
@@ -30,7 +30,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    console.log(stime(), "BaseDriver.onopen: upstream.onopen(ev)", this.upstream)
+    console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
     if (!!this.upstream) this.upstream.onopen(ev)
   };
   /** invoke upstream.onerror(ev) */
@@ -39,12 +39,12 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    console.log(stime(), "BaseDriver.onclose: upstream.onclose(ev)", this.upstream)
+    console.log(stime(this, ".onclose:"), "upstream.onclose(ev), upstream=", className(this.upstream))
     if (!!this.upstream) this.upstream.onclose(ev)
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
-    console.log(stime(), "BaseDriver.onmessage: this.wsmessage(ev.data)", this.upstream)
+    console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
     this.wsmessage(ev.data)
   };
   /**
@@ -54,7 +54,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * default: this.upstream.wsmessage(data)  
    */
   wsmessage(data: DataBuf<I>): void {
-    console.log(stime(), "BaseDriver.wsmessage: upstream.wsmessage(data)", this.upstream)
+    console.log(stime(this, ".wsmesssage"), "upstream.wsmessage(data), upstream=", className(this.upstream))
     if (!!this.upstream) this.upstream.wsmessage(data)
   };
 
