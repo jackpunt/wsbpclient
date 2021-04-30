@@ -10,9 +10,11 @@ var readyState = (ws: WebSocket): string => {
 }
 var testTimeout = 3000;
 
-const echourl = "wss://game7.thegraid.com:8443"
-const cgservurl = "wss://game7.thegraid.com:8444"
-const testurl = cgservurl;
+const echourl: string = "wss://game7.thegraid.com:8443"
+const cgservurl: string = "wss://game7.thegraid.com:8444"
+const testurl: string = cgservurl;
+
+const echoserver:boolean = (testurl == echourl)
 /**
  * A WebSocketBase that uses wsWebSocket for a WebSocket.
  * 
@@ -70,18 +72,51 @@ class TestCgClient<O extends pbMessage> extends CgClient<O> {
     super.eval_ack(ack, req)
   }
 }
+class TestMsgAcked {
+  message: CgMessage
+  pAck: AckPromise
+  constructor(pAck: AckPromise, expectMsg: (msg: CgMessage) => void, expectRej?: (reason: any) => void) {
+    this.pAck = pAck
+    this.message = pAck.message
 
-var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
+    this.pAck.then((msg) => { expectMsg(msg) }, (reason: any) => { expectRej? expectRej(reason) : fail() })
+
+    wsbase.ws.addEventListener('message', (ev: MessageEvent) => {
+      let data = ev.data as DataBuf<CgMessage>
+      let cgm = CgMessage.deserialize(data)
+      let type = cgm.cgType
+      console.log(stime(this), "ws.message received", {type, cgm})
+      if (cgm.type === CgType.ack)
+        this.pAck.fulfill(cgm)
+    }, {once: true})
+  }
+}
+
+/** create a WebSocketBase */
 var wsbase = new TestSocketBase<pbMessage, pbMessage>()
+var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
 
 test("WebSocketBase.construct & connectws", () => {
   expect(wsbase).toBeInstanceOf(WebSocketBase)
   console.log(stime(), "try connect to echourl", testurl)
-  wsbase.connectWebSocket(testurl, openP, closeP)
-  expect(wsbase.ws).toBeInstanceOf(wsWebSocket)
+  wsbase.connectWebSocket(testurl, openP, closeP) // start the connection sequence --> openP
+  expect(wsbase.ws).toBeInstanceOf(wsWebSocket)   // wsbase.ws exists
   console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.ws))
-  pwsbase.fulfill(wsbase)
+  pwsbase.fulfill(wsbase)                         // assert we have the components of wsbase & wsbase.ws
   setTimeout(() => openP.reject("timeout"), 500); // is moot if alaready connected
+})
+
+/** create a CgClient, stack it on the WebSocketDriver stream */
+var cgclient: CgClient<pbMessage> = new TestCgClient();
+var pCgClient = new EzPromise<CgClient<pbMessage>>();  // fulfill when stacked
+test("CgClient.connectDnStream", () => {
+  return pwsbase.then((wsbase) => {
+    console.log(stime(), "try cgclient.connectDnStream")
+    cgclient.connectDnStream(wsbase)
+    expect(cgclient.dnstream).toBe(wsbase)
+    expect(wsbase.upstream).toBe(cgclient)
+    pCgClient.fulfill(cgclient)
+  })
 })
 
 var openP = new EzPromise<AWebSocket>()
@@ -101,58 +136,45 @@ test("WebSocket connected & OPEN", () => {
   })
 })
 
-var pMsgsSent = new EzPromise<AckPromise>()
+var pMsgsSent = new EzPromise<CgMessage>()
 var group_name = "test_group"
 var client_id = 1
-var pMsg0: AckPromise // from send_join
-var pMsg1: AckPromise // from send_ack (resolved && value === undefined)
+var pPreSend: AckPromise  // expect Nak<"not a member">
+var pSendJoin: AckPromise // from send_join
+var pSendAck: AckPromise // from send_ack (resolved && value === undefined)
 
-var cgclient: CgClient<pbMessage> = new TestCgClient();
-test("CgClient.connectDnStream", () => {
-  return pwsbase.finally(() => {
-    console.log(stime(), "try cgclient.connectDnStream")
-    cgclient.connectDnStream(wsbase)
-    expect(cgclient.dnstream).toBe(wsbase)
-    expect(wsbase.upstream).toBe(cgclient)
-    pMsg0 = cgclient.send_join(group_name, 1, "passcode1")
-    pMsg1 = cgclient.sendAck("joined", {client_id: 1, group: group_name})
-    //console.log("send messages: pMsg0=", pMsg0, "pMsg1=", pMsg1)
-    pMsgsSent.fulfill(pMsg0)
-  })
-})
-
-test("wss.message received", done => {
-  pwsbase.then((wsbase) => {
-    let nth = 0;
-    // for logging advice only; no semantic effect
-    wsbase.ws.addEventListener("message", function(this: WebSocket, ev: MessageEvent<ArrayBuffer>) {
-      expect(ev.data).toBeInstanceOf(ArrayBuffer)
-      let data = ev.data as DataBuf<CgMessage>
-      let cgm = CgMessage.deserialize(data)
-      console.log(stime(), "wss.message received", cgm.cgType, ++nth, cgm)
-      expect([CgType.join, CgType.ack]).toContain(cgm.type) // in that order...
-      done()
+test("CgClient.sendNone", (done) => {
+  return openP.then((ws) => {
+    pPreSend = cgclient.send_none(group_name, 0, "preJoinFail")
+    new TestMsgAcked(pPreSend, (ack) => {
+      if (echoserver) {
+        expect(ack.success).toBe(true)
+        expect(ack.cause).toBe(group_name)
+      } else {
+        expect(ack.success).toBe(false)
+        expect(ack.cause).toBe("not a member")
+      }
+      done() 
+    }, (rej) => { 
+      fail()
     })
   })
-})
-
-test("CgClient.send_join acked", () => {
-  // completes when pMsg1 is echoed back to us.
-  return pMsgsSent.then((pMsg) => {
-    //console.log("send_join acked: pMsg0=", pMsg0, "pMsg1=", pMsg1, "pMsg=", pMsg)
-    pMsg0.then((ack_msg_rcvd) => {
-      // client_id fails on second run: we didn't leave, and socket drop does not auto-leave!
-      expect(ack_msg_rcvd).toEqual(pMsg1.message) // presumably via serialize/deserialize
-      expect(ack_msg_rcvd.success).toBe(true)
-      expect(cgclient.group_name).toBe(group_name)
-      expect(cgclient.client_id).toBe(client_id)
-      expect(cgclient.isClient0()).toBeFalsy()
+}, testTimeout - 2000)
+test("CgClient.sendJoin & Ack", () => {
+  return pPreSend.finally(() => {
+    pSendJoin = cgclient.send_join(group_name, 1, "passcode1")
+    new TestMsgAcked(pSendJoin, (msg) => {
+      expect(msg.type).toEqual(CgType.ack)
+      expect(msg.group).toEqual(group_name)
+      expect(msg.cause).toEqual("joined")
+      expect(msg.client_id).toEqual(1)
+      expect(cgclient.isClient0()).toBe(false)
     })
+    if (echoserver)
+      pSendAck = cgclient.sendAck("joined", {client_id: 1, group: group_name})
+    pMsgsSent.fulfill(pSendJoin)
   })
 })
-
-
-
 
 type CloseInfo = { code: number, reason: string }
 var close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "test done" }
@@ -170,7 +192,7 @@ describe("Closing", () => {
         closeP.fulfill(close_normal)
       })
       try {
-        wsbase.closeStream(close_normal.code, close_normal.reason)
+        wsbase.closeStream(close_normal.code, close_normal.reason) // wsbase.ws.close(code, reason)
       } catch (err) {
         console.log(stime(), "closeStream error:", err)
         closeP.fulfill(close_fail)

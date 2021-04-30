@@ -11,7 +11,7 @@ declare module './CgProto' {
   }
 }
 CgMessage.prototype.expectsAck = function() {
-  return [CgType.send, CgType.join, CgType.leave].includes(this.type)
+  return [CgType.none, CgType.send, CgType.join, CgType.leave].includes(this.type)
 }
 // Augment CgType with accessor that returns CgType as a string.
 Object.defineProperty(CgMessage.prototype, 'cgType', {

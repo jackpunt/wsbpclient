@@ -2,6 +2,7 @@ import ws$WebSocket = require("ws");
 
 export { wsWebSocket, ws$WebSocket as ws }
 
+// But then see: https://stackoverflow.com/questions/52299063/why-im-able-to-access-websocket-native-browser-object-in-node-jest
 /** 
  * a WebSocket implemented as a wrapper around a ws.WebSocket.
  * 
