@@ -140,6 +140,18 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     // console.log(stime(), "CgBase.sendToSocket:", message.cgType ,{message, ackPromise})
     return ackPromise
   }
+  /**
+   * send a useless "none" message.
+   * @param group 
+   * @param client_id 
+   * @param cause 
+   * @returns AckPromise
+   */
+  send_none(group?: string, client_id?: number, cause?: string): AckPromise {
+    let message = new CgMessage({ type: CgType.none, group: group, client_id, cause })
+    let promise = this.sendToSocket(message)
+    return promise
+  }
   /** 
    * send a [sub-protocol (O = CmMessage)] message, wrapped in a I = CgMessage(CgType.send)
    * @return AckPromise that resolves to the Ack/Nak of the send message
@@ -165,12 +177,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /**
    * send_join client makes a connection to server group
    * @param group group name
-   * @param id client_id
+   * @param client_id client_id
    * @param cause identifying string
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
-  send_join(group: string, id?: number, cause?: string): AckPromise {
-    let message = new CgMessage({ type: CgType.join, group: group, client_id: id, cause: cause })
+  send_join(group: string, client_id?: number, cause?: string): AckPromise {
+    let message = new CgMessage({ type: CgType.join, group, client_id, cause })
     let promise = this.sendToSocket(message)
     //console.log(stime(this, ".send_join:"), "promise=", promise, "then=", promise.then)
     promise.then((ack) => {
@@ -186,12 +198,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * client leaves the connection to server group.
    * 
    * @param group group_name
-   * @param id the client_id
+   * @param client_id the client_id
    * @param cause identifying string
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
-  send_leave(group: string, id?: number, cause?: string): Promise<CgMessage> {
-    let message = new CgMessage({ type: CgType.leave, group: group, client_id: id })
+  send_leave(group: string, client_id?: number, cause?: string): Promise<CgMessage> {
+    let message = new CgMessage({ type: CgType.leave, group: group, client_id })
     let promise = this.sendToSocket(message)
     promise.then((ack) => { this.on_leave(ack.cause) }, (nak) => {})
     return promise
@@ -248,7 +260,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   }
   /**
    * Action to take after leaving group.
-   * Base: close socket
+   * Base: closeStream(0, cause)
    * @param cause 
    */
   on_leave(cause: string) {
