@@ -1,5 +1,5 @@
 import { BaseDriver } from "./BaseDriver";
-import { AWebSocket, className, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
+import { AWebSocket, className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
 import { CgMessage, CgType } from "./CgProto";
 import { Message } from "google-protobuf";
 
@@ -37,7 +37,7 @@ export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
  *    (AckPromise.resolved && AckPromise.value) === undefined
  */
 export class AckPromise extends EzPromise<CgMessage> {
-  constructor(public message: CgMessage, def = (ful, rej) => { }) {
+  constructor(public message: CgMessage, def?: (fil: (value: CgMessage | PromiseLike<CgMessage>) => void, rej: (reason?: any) => void) => void) {
     super(def)
   }
 }
@@ -119,9 +119,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /** 
    * Send message downstream, toward websocket. 
    * 
-   * @return an AckPromise:  
-   * .reject(error) if there is an error while sending  
-   * .fulfill(ackMsg) when Ack for CgType: join, leave, send is received  
+   * @return an AckPromise: &nbsp; &nbsp;
+   * .reject(error) if there is an error while sending &nbsp; &nbsp;
+   * .fulfill(ackMsg) when Ack for CgType: join, leave, send is received &nbsp; &nbsp;
    * .fulfill(undefined) if sending an Ack or None...
    */
   sendToSocket(message: CgMessage): AckPromise {
@@ -202,8 +202,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @param cause identifying string
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
-  send_leave(group: string, client_id?: number, cause?: string): Promise<CgMessage> {
-    let message = new CgMessage({ type: CgType.leave, group: group, client_id })
+  send_leave(group: string, client_id?: number, cause?: string): AckPromise {
+    let message = new CgMessage({ type: CgType.leave, group, client_id, cause })
     let promise = this.sendToSocket(message)
     promise.then((ack) => { this.on_leave(ack.cause) }, (nak) => {})
     return promise
@@ -265,7 +265,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   on_leave(cause: string) {
     console.log(stime(this, ".on_leave:"), "closeStream:", cause)
-    this.closeStream(0, cause) // presumably ref will have an onclose to kill itself
+    this.closeStream(CLOSE_CODE.NormalCLosure, cause) // presumably ref will have an onclose to kill itself
   }
   /**
    * process positive Ack from join, leave, send.
@@ -298,7 +298,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** informed that [other] client has departed */
   eval_leave(message: CgMessage): void {
-    console.log(stime(this, ".leave:"), message)
+    console.log(stime(this, ".eval_leave:"), message)
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // booted from group! (or i'm the ref[0] and everyone else has gone)

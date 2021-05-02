@@ -23,7 +23,7 @@ const echoserver:boolean = (testurl == echourl)
 class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
   url: string
-  cnx_time = 1000;
+  cnx_time = testTimeout - 500;
 
   connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<AWebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
@@ -43,10 +43,10 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
     })
 
     this.ws.addEventListener('open', () => {
-      console.log(stime(this, "ws connected & open!"), "   openP.fulfill(ws)")
+      console.log(stime(this, " ws connected & open!"), "   openP.fulfill(ws)")
       openP.fulfill(this.ws)
+      console.log(stime(this, " Set OkToClose timeout:"), 'fulfill("timeout") = ', this.cnx_time)
       setTimeout(() => {
-        console.log(stime(this, "Ok to Close:"), 'fulfill("timeout") = ', this.cnx_time)
         okToClose.fulfill("timeout")
       }, this.cnx_time)
     })
@@ -71,24 +71,35 @@ class TestCgClient<O extends pbMessage> extends CgClient<O> {
     console.log(stime(this, ".eval_ack"), {ack, reqs, req})
     super.eval_ack(ack, req)
   }
+
+  on_leave(cause: string) {
+    //override CgBase so it does not auto-close the stream
+  }
 }
 class TestMsgAcked {
+  name: string;
   message: CgMessage
   pAck: AckPromise
-  constructor(pAck: AckPromise, expectMsg: (msg: CgMessage) => void, expectRej?: (reason: any) => void) {
+  pAckp: EzPromise<AckPromise>
+  constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, expectMsg: (msg: CgMessage) => void, expectRej?: (reason: any) => void) {
+    this.name = name;
     this.pAck = pAck
+    this.pAckp = pAckp
     this.message = pAck.message
 
-    this.pAck.then((msg) => { expectMsg(msg) }, (reason: any) => { expectRej? expectRej(reason) : fail() })
-
-    wsbase.ws.addEventListener('message', (ev: MessageEvent) => {
+    this.pAck.then((msg) => { expectMsg(msg) }, (reason: any) => { expectRej? expectRej(reason) : null })
+    this.pAck.finally(() => { pAckp.fulfill(pAck) }) 
+    let listenForAck =  (ev: MessageEvent) => {
       let data = ev.data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
       let type = cgm.cgType
-      console.log(stime(this), "ws.message received", {type, cgm})
-      if (cgm.type === CgType.ack)
+      console.log(stime(this), name, "listenForAck:", {type, cgm})
+      if (cgm.type === CgType.ack) {
         this.pAck.fulfill(cgm)
-    }, {once: true})
+        wsbase.ws.removeEventListener('message', listenForAck)
+      }
+    }
+    wsbase.ws.addEventListener('message', listenForAck)
   }
 }
 
@@ -98,7 +109,7 @@ var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
 
 test("WebSocketBase.construct & connectws", () => {
   expect(wsbase).toBeInstanceOf(WebSocketBase)
-  console.log(stime(), "try connect to echourl", testurl)
+  console.log(stime(), "try connect to url =", testurl)
   wsbase.connectWebSocket(testurl, openP, closeP) // start the connection sequence --> openP
   expect(wsbase.ws).toBeInstanceOf(wsWebSocket)   // wsbase.ws exists
   console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.ws))
@@ -122,7 +133,7 @@ test("CgClient.connectDnStream", () => {
 var openP = new EzPromise<AWebSocket>()
 openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
 
-var okToClose = new EzPromise<string>()
+var okToClose = new EzPromise<string>() // replaces pMsgsSent
 
 test("WebSocket connected & OPEN", () => {
   return openP.then((ws) => {
@@ -136,21 +147,20 @@ test("WebSocket connected & OPEN", () => {
   })
 })
 
-var pMsgsSent = new EzPromise<CgMessage>()
 var group_name = "test_group"
-var client_id = 1
-var pPreSend: AckPromise  // expect Nak<"not a member">
-var pSendJoin: AckPromise // from send_join
-var pSendAck: AckPromise // from send_ack (resolved && value === undefined)
+var pPreSendp = new EzPromise<AckPromise>()  // expect Nak<"not a member">
+var pSendJoinp = new EzPromise<AckPromise>() // from send_join
 
 test("CgClient.sendNone", (done) => {
   return openP.then((ws) => {
-    pPreSend = cgclient.send_none(group_name, 0, "preJoinFail")
-    new TestMsgAcked(pPreSend, (ack) => {
+    let pPreSend = cgclient.send_none(group_name, 0, "preJoinFail")
+    new TestMsgAcked("CgClient.sendNone", pPreSend, pPreSendp, (ack) => {
       if (echoserver) {
+        console.log(stime(), "echoserver returned", ack)
         expect(ack.success).toBe(true)
         expect(ack.cause).toBe(group_name)
       } else {
+        console.log(stime(), "cgserver returned", ack)
         expect(ack.success).toBe(false)
         expect(ack.cause).toBe("not a member")
       }
@@ -160,19 +170,42 @@ test("CgClient.sendNone", (done) => {
     })
   })
 }, testTimeout - 2000)
+
 test("CgClient.sendJoin & Ack", () => {
-  return pPreSend.finally(() => {
-    pSendJoin = cgclient.send_join(group_name, 1, "passcode1")
-    new TestMsgAcked(pSendJoin, (msg) => {
+  let cause = "joined", client_id = 1
+  return pPreSendp.finally(() => {
+    let pSendJoin = cgclient.send_join(group_name, client_id, "passcode1")
+    console.log(stime(), "CgClient.sendJoin:")
+    new TestMsgAcked("gClient.sendJoin", pSendJoin, pSendJoinp, (msg) => {
       expect(msg.type).toEqual(CgType.ack)
       expect(msg.group).toEqual(group_name)
-      expect(msg.cause).toEqual("joined")
-      expect(msg.client_id).toEqual(1)
+      expect(msg.cause).toEqual(cause)
+      expect(msg.client_id).toEqual(client_id)
       expect(cgclient.isClient0()).toBe(false)
     })
-    if (echoserver)
-      pSendAck = cgclient.sendAck("joined", {client_id: 1, group: group_name})
-    pMsgsSent.fulfill(pSendJoin)
+    if (echoserver) {
+      cgclient.sendAck(cause, {client_id, group: group_name})
+    }
+  })
+})
+var pSendLeavep = new EzPromise<AckPromise>()
+test("CgClient.sendLeave & Ack", () => {
+  let cause = "test_done", client_id = cgclient.client_id // 1
+  return pSendJoinp.finally(() => {
+    let pSendLeave = cgclient.send_leave(group_name, client_id, cause)
+    console.log(stime(), "CgClient.sendLeave:")
+    new TestMsgAcked("CgClient.sendLeave", pSendLeave, pSendLeavep, (msg) => {
+      expect(msg.type).toEqual(CgType.ack)
+      expect(msg.group).toEqual(group_name)
+      expect(msg.cause).toEqual(cause)
+      expect(msg.client_id).toEqual(cgclient.client_id)
+      expect(cgclient.isClient0()).toBe(false)
+      console.log(stime(), "CgClient.sendLeave: okToClose.fulfill('", cause, "'")
+      okToClose.fulfill(cause)               // signal end of test
+    })
+    if (echoserver) {
+      cgclient.sendAck(cause, {client_id, group: group_name})
+    }
   })
 })
 
