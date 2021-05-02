@@ -152,15 +152,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     let promise = this.sendToSocket(message)
     return promise
   }
-  /** 
-   * send a [sub-protocol (O = CmMessage)] message, wrapped in a I = CgMessage(CgType.send)
-   * @return AckPromise that resolves to the Ack/Nak of the send message
-   */
-  sendWrapped(message: O, client_id?: number): AckPromise {
-    let msg = message.serializeBinary()
-    let cgmsg: CgMessage = new CgMessage({ type: CgType.send, msg, client_id });
-    return this.sendToSocket(cgmsg)
-  }
+
   /**
    * send message from upstream to downstream
    * @param message Object containing pbMessage<INNER>
@@ -171,7 +163,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   send_send(message: O, opts?: CgMessageOpts): AckPromise {
     let msg = message.serializeBinary()
     let cgmsg: CgMessage = new CgMessage({...opts, type: CgType.send, msg })
-    let promise =  this.sendToSocket(cgmsg)
+    let promise = this.sendToSocket(cgmsg)
     return promise
   }
   /**
