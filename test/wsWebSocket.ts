@@ -41,7 +41,7 @@ class wsWebSocket implements WebSocket {
   removeEventListener<K extends keyof WebSocketEventMap>(type: K, listener: (this: WebSocket, ev: WebSocketEventMap[K]) => any, options?: boolean | EventListenerOptions): void;
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
   removeEventListener(type: any, listener: any, options?: any) {
-    this.wss.addEventListener(type, listener)
+    this.wss.removeEventListener(type, listener)
   }
   dispatchEvent(event: Event): boolean {
     return this.wss.emit(event.type)
