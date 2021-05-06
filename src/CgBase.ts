@@ -48,7 +48,7 @@ export class AckPromise extends EzPromise<CgMessage> {
  */
 export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
-    static msgsToAck = [CgType.send, CgType.join, CgType.leave]
+  static msgsToAck = [CgType.send, CgType.join, CgType.leave]
 
   /** group from Ack of join() */
   group_name: string;  // group to which this connection is join'd
@@ -217,7 +217,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   parseEval(message: CgMessage): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
-    console.log(stime(this, ".parseEval:"), "Received:", message.cgType, message)
+    //console.log(stime(this, ".parseEval:"), "Received:", message.cgType, message)
     switch (message.type) {
       case CgType.ack: {
         let req = !!this.promise_of_ack && this.promise_of_ack.message;

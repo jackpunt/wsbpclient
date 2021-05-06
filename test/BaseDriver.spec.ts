@@ -31,11 +31,6 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
       ws = new wsWebSocket(url); // TODO: handle failure of URL or connection
     }
     super.connectWebSocket(ws)
-    // there are no DOM Events for ws.onmessage(Event), so get invocation from this.wss:
-    // fwd message.data from wss<wsWebSocket> to BaseDriver:
-    this.wss.onmessage = (ev: ws.MessageEvent) => {
-      this.wsmessage(ev.data as Buffer) // assert wss.binaryType === 'arraybuffer'
-    }
 
     this.ws.addEventListener('error', (ev: Event) => {
       console.log(stime(this, "ws error:"), ev)
@@ -51,26 +46,15 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
       }, this.cnx_time)
     })
   }
-  /** the wrapped ws$WebSocket: ws.WebSocket */
-  get wss() { return (this.ws as wsWebSocket).wss  }
+
 }
 
 class TestCgClient<O extends pbMessage> extends CgClient<O> {
-  // wsmessage(data: DataBuf<O>) {
-  //   console.log(stime(), "TestCgClient.wsmessage data=", data)
-  //   super.wsmessage(data)
+  // eval_ack(ack: CgMessage, req: CgMessage) {
+  //   let reqs = req.cgType
+  //   console.log(stime(this, ".eval_ack"), {ack, reqs, req})
+  //   super.eval_ack(ack, req)
   // }
-  msgPromiseByType: Record<string, AckPromise> = {}
-  sendToSocket(message: CgMessage): AckPromise {
-    let rv = super.sendToSocket(message)
-    this.msgPromiseByType[message.type] = rv // holds the LATEST AckPromise, for each message.type
-    return rv
-  }
-  eval_ack(ack: CgMessage, req: CgMessage) {
-    let reqs = req.cgType
-    console.log(stime(this, ".eval_ack"), {ack, reqs, req})
-    super.eval_ack(ack, req)
-  }
 
   on_leave(cause: string) {
     //override CgBase so it does not auto-close the stream
@@ -89,17 +73,17 @@ class TestMsgAcked {
 
     this.pAck.then((msg) => { expectMsg(msg) }, (reason: any) => { expectRej? expectRej(reason) : null })
     this.pAck.finally(() => { pAckp.fulfill(pAck) }) 
-    let listenForAck =  (ev: MessageEvent) => {
-      let data = ev.data as DataBuf<CgMessage>
+    let listenForAck: EventListener =  (ev: Event) => {
+      let data = (ev as MessageEvent).data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
       let type = cgm.cgType
       console.log(stime(this), name, "listenForAck:", {type, cgm})
       if (cgm.type === CgType.ack) {
         this.pAck.fulfill(cgm)
-        wsbase.ws.removeEventListener('message', listenForAck)
+        wsbase.removeEventListener('message', listenForAck)
       }
     }
-    wsbase.ws.addEventListener('message', listenForAck)
+    wsbase.addEventListener('message', listenForAck)
   }
 }
 
@@ -149,9 +133,8 @@ test("WebSocket connected & OPEN", () => {
 
 var group_name = "test_group"
 var pPreSendp = new EzPromise<AckPromise>()  // expect Nak<"not a member">
-var pSendJoinp = new EzPromise<AckPromise>() // from send_join
 
-test("CgClient.sendNone", (done) => {
+test("CgClient.sendNone & Nak", (done) => {
   return openP.then((ws) => {
     let pPreSend = cgclient.send_none(group_name, 0, "preJoinFail")
     new TestMsgAcked("CgClient.sendNone", pPreSend, pPreSendp, (ack) => {
@@ -171,6 +154,7 @@ test("CgClient.sendNone", (done) => {
   })
 }, testTimeout - 2000)
 
+var pSendJoinp = new EzPromise<AckPromise>() // from send_join
 test("CgClient.sendJoin & Ack", () => {
   let cause = "joined", client_id = 1
   return pPreSendp.finally(() => {

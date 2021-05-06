@@ -1,15 +1,65 @@
+import EventEmitter = require("node:events");
 import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types";
 
+interface EventObject {
+  callback: EventListenerOrEventListenerObject;
+  options: AddEventListenerOptions // {once? passive? capture?}
+}
+/** minimal implementation of EventTarget to power BaseDriver on Node.js */
+class ServerSideEventTarget implements EventTarget {
+  listeners: Record<string, Array<EventObject>> = {}
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
+    let tlist = this.listeners[type]
+    if (!tlist) this.listeners[type] = tlist = []
+    if ((typeof (options) == 'boolean')) options = { capture: options }
+    tlist.push({callback: listener, options: options || {}}) // TODO: if options.once then wrap it with self-removal
+  }
+  dispatchEvent(event: Event): boolean {
+    let tlist = this.listeners[event.type]
+    if (!tlist) return true
+    tlist.forEach(lis => {
+      if (typeof(lis.callback) == 'function' ) {
+        lis.callback.call(this, event)
+      }
+    })
+    return event.returnValue
+  }
+  removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
+    let tlist = this.listeners[type]
+    if (!tlist) return
+    if (!(typeof (options) == 'object')) options = { capture: options }
+    let same = (lis: EventObject) => { return (lis.callback == callback) && (lis.options.capture == (options as EventListenerOptions).capture)}
+    this.listeners[type] = tlist.filter(lis => !same(lis))
+  }
+}
 /**
  * Stackable drivers to move pbMessages up/down from/to websocket.
  * I (INNER) is closer to the websocket, aka downstream
  * O (OUTER) is closer to the application, aka upstream
  * 
  */
-export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O> {
+export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget {
   dnstream: UpstreamDrivable<I>;      // next driver downstream
   upstream: WebSocketEventHandler<O>; // next driver upstream
 
+  newEventTarget(): EventTarget {
+    try {
+      return new EventTarget()  // works in browser
+    } catch {
+      return new ServerSideEventTarget() // fallback to cheap impl on server
+    }
+  }
+  et: EventTarget = this.newEventTarget()
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
+    this.et.addEventListener(type, listener, options)
+  }
+  // (event: CustomEvent)
+  dispatchEvent(event: Event): boolean {
+    return this.et.dispatchEvent(event)
+  }
+  removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
+    this.et.removeEventListener(type, callback, options)
+  }
   /** Connect to downstream Driver & tell it to connectUpStream to us.  
    * this.dnstream = dnstream; dnstream.upstream = this
    */
@@ -46,6 +96,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
     console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
     this.wsmessage(ev.data)
+    this.dispatchEvent(ev) // accessing only ev.type == 'message' & ev.data; maybe ev.target...
   };
   /**
    * process message from downstream
