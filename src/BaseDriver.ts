@@ -1,13 +1,13 @@
 import EventEmitter = require("node:events");
 import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types";
 
-interface EventObject {
+interface ListenerInfo {
   callback: EventListenerOrEventListenerObject;
   options: AddEventListenerOptions // {once? passive? capture?}
 }
 /** minimal implementation of EventTarget to power BaseDriver on Node.js */
 class ServerSideEventTarget implements EventTarget {
-  listeners: Record<string, Array<EventObject>> = {}
+  listeners: Record<string, Array<ListenerInfo>> = {}
   addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
     let tlist = this.listeners[type]
     if (!tlist) this.listeners[type] = tlist = []
@@ -28,7 +28,7 @@ class ServerSideEventTarget implements EventTarget {
     let tlist = this.listeners[type]
     if (!tlist) return
     if (!(typeof (options) == 'object')) options = { capture: options }
-    let same = (lis: EventObject) => { return (lis.callback == callback) && (lis.options.capture == (options as EventListenerOptions).capture)}
+    let same = (lis: ListenerInfo) => { return (lis.callback == callback) && (lis.options.capture == (options as EventListenerOptions).capture)}
     this.listeners[type] = tlist.filter(lis => !same(lis))
   }
 }
@@ -42,6 +42,13 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   dnstream: UpstreamDrivable<I>;      // next driver downstream
   upstream: WebSocketEventHandler<O>; // next driver upstream
 
+  newMessageEvent(data: DataBuf<I>): MessageEvent {
+    try {
+      return new MessageEvent('message', {data: data})
+    } catch {
+      return {type: 'message', data: data} as MessageEvent
+    }
+  }
   newEventTarget(): EventTarget {
     try {
       return new EventTarget()  // works in browser
@@ -96,16 +103,17 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
     console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
     this.wsmessage(ev.data)
-    this.dispatchEvent(ev) // accessing only ev.type == 'message' & ev.data; maybe ev.target...
   };
   /**
-   * process message from downstream
-   * OVERRIDE ME!
+   * process message from downstream:
+   * dispatchEvent({type: 'message', data: data})
    * 
    * default: this.upstream.wsmessage(data)  
    */
   wsmessage(data: DataBuf<I>): void {
+    let event = this.newMessageEvent(data)
     console.log(stime(this, ".wsmesssage"), "upstream.wsmessage(data), upstream=", className(this.upstream))
+    this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
     if (!!this.upstream) this.upstream.wsmessage(data)
   };
 
