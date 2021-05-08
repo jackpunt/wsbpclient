@@ -101,20 +101,19 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
-    console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
+    //console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
     this.wsmessage(ev.data)
   };
   /**
    * process message from downstream:
    * dispatchEvent({type: 'message', data: data})
-   * 
-   * default: this.upstream.wsmessage(data)  
+   * invoke: this.upstream.wsmessage(data)  
    */
-  wsmessage(data: DataBuf<I>): void {
+  wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
     let event = this.newMessageEvent(data)
-    console.log(stime(this, ".wsmesssage"), "upstream.wsmessage(data), upstream=", className(this.upstream))
+    console.log(stime(this, ".wsmesssage"), `upstream.wsmessage(${data.byteLength}), upstream=`, className(this.upstream))
     this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
-    if (!!this.upstream) this.upstream.wsmessage(data)
+    if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
   };
 
   deserialize(bytes: Uint8Array): I {

@@ -68,9 +68,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /** deserialize && parseEval(message) 
    * @override
    */
-  wsmessage(data: DataBuf<CgMessage>) {
+  wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
     let message = CgMessage.deserialize(data)
-    this.parseEval(message)    
+    this.parseEval(message, wrapper)    
   }
 
   /**
@@ -207,14 +207,14 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * (not clear if CgClient needs this...)
    */
   isFromReferee(message: CgMessage): boolean {
-    return (message.client_id === 0 && message.cause === "referee")
+    return (message.client_id === 0)
   }
 
   /**
    * parse CgType: eval_ each of ack, nak, join, leave, send, none.
    * @param message 
    */
-  parseEval(message: CgMessage): void {
+  parseEval(message: CgMessage, wrapper?: pbMessage, ...args: any): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
     //console.log(stime(this, ".parseEval:"), "Received:", message.cgType, message)
@@ -316,9 +316,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   eval_send(message: CgMessage): void {
     if (this.upstream) {
-      let msg = (this.upstream as CgBase<O>).deserialize(message.msg)
-      console.log(stime(this, ".eval_send:"), msg)
-      this.upstream.wsmessage(message.msg)
+      console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
+      this.upstream.wsmessage(message.msg, message)
     } else {
       console.log(stime(this, ".eval_send:"), "no upstream:", message)
     }

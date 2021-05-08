@@ -15,6 +15,7 @@ export class CgMessage extends pb_1.Message {
         group?: string;
         cause?: string;
         nocc?: boolean;
+        client_from?: number;
     }) {
         super();
         pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], []);
@@ -39,6 +40,9 @@ export class CgMessage extends pb_1.Message {
             }
             if ("nocc" in data && data.nocc != undefined) {
                 this.nocc = data.nocc;
+            }
+            if ("client_from" in data && data.client_from != undefined) {
+                this.client_from = data.client_from;
             }
         }
     }
@@ -84,6 +88,12 @@ export class CgMessage extends pb_1.Message {
     set nocc(value: boolean) {
         pb_1.Message.setField(this, 7, value);
     }
+    get client_from() {
+        return pb_1.Message.getField(this, 8) as number;
+    }
+    set client_from(value: number) {
+        pb_1.Message.setField(this, 8, value);
+    }
     toObject() {
         var data: {
             type?: CgType;
@@ -93,6 +103,7 @@ export class CgMessage extends pb_1.Message {
             group?: string;
             cause?: string;
             nocc?: boolean;
+            client_from?: number;
         } = {};
         if (this.type != null) {
             data.type = this.type;
@@ -115,6 +126,9 @@ export class CgMessage extends pb_1.Message {
         if (this.nocc != null) {
             data.nocc = this.nocc;
         }
+        if (this.client_from != null) {
+            data.client_from = this.client_from;
+        }
         return data;
     }
     serialize(w?: pb_1.BinaryWriter): Uint8Array | undefined {
@@ -133,6 +147,8 @@ export class CgMessage extends pb_1.Message {
             writer.writeString(6, this.cause);
         if (this.nocc !== undefined)
             writer.writeBool(7, this.nocc);
+        if (this.client_from !== undefined)
+            writer.writeInt32(8, this.client_from);
         if (!w)
             return writer.getResultBuffer();
     }
@@ -162,6 +178,9 @@ export class CgMessage extends pb_1.Message {
                     break;
                 case 7:
                     message.nocc = reader.readBool();
+                    break;
+                case 8:
+                    message.client_from = reader.readInt32();
                     break;
                 default: reader.skipField();
             }

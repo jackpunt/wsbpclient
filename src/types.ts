@@ -42,7 +42,7 @@ export interface WebSocketEventHandler<I extends pbMessage> {
 	onerror: (ev: Event) => void | null; // { target: WebSocket, error: any, message: any, type: string }
 	onclose: (ev: CloseEvent) => void | null; // { target: WebSocket, wasClean: boolean, code: number, reason: string; }
   onmessage(ev: MessageEvent<DataBuf<I>>): void | null // { target: WebSocket, data: any, type: string }
-	wsmessage: (buf: DataBuf<I>) => void | null; // from downstream: bytes encoding my INPUT proto
+	wsmessage: (buf: DataBuf<I>, wrapper?: pbMessage) => void | null; // from downstream: bytes encoding my INPUT proto
 }
 
 export interface PbParser<T extends pbMessage> {
