@@ -1,4 +1,3 @@
-import EventEmitter = require("node:events");
 import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types";
 
 interface ListenerInfo {
