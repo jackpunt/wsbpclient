@@ -105,15 +105,22 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.wsmessage(ev.data)
   };
   /**
+   * Deliver data to 'message' listeners: {type: 'message', data: data}.
+   * @param data
+   */
+  dispatchMessageEvent(data: DataBuf<I>) {
+    let event = this.newMessageEvent(data)
+    this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
+  }
+  /**
    * process message from downstream:
-   * dispatchEvent({type: 'message', data: data})
-   * invoke: this.upstream.wsmessage(data)  
+   * this.dispatchMessageEvent(data)
+   * 
+   * Probably want to override:  
+   * this.parseEval(this.deserialize(data))
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    let event = this.newMessageEvent(data)
-    console.log(stime(this, ".wsmesssage"), `upstream.wsmessage(${data.byteLength}), upstream=`, className(this.upstream))
-    this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
-    if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
+    this.dispatchMessageEvent(data)
   };
 
   deserialize(bytes: Uint8Array): I {
@@ -192,6 +199,18 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
     }
     this.ws = ws;  // may be null
   }
+
+  /**
+   * 
+   * @param data 
+   * @param wrapper 
+   * @override BaseDriver
+   */
+  wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
+    this.dispatchMessageEvent(data)
+    console.log(stime(this, ".wsmesssage"), `upstream.wsmessage(${data.byteLength}), upstream=`, className(this.upstream))
+    if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
+  };
 
   /** process data from upstream by passing it downsteam. */
   sendBuffer(data: DataBuf<O>): void {

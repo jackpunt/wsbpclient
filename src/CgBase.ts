@@ -65,12 +65,14 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   deserialize(bytes: DataBuf<CgMessage>): CgMessage  {
     return CgMessage.deserialize(bytes)
   }
-  /** deserialize && parseEval(message) 
-   * @override
+  /** 
+   * dispatch, deserialize && parseEval(message) 
+   * @override BaseDriver
    */
   wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
+    this.dispatchMessageEvent(data)
     let message = CgMessage.deserialize(data)
-    this.parseEval(message, wrapper)    
+    this.parseEval(message, wrapper)
   }
 
   /**
