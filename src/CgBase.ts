@@ -1,7 +1,6 @@
 import { BaseDriver } from "./BaseDriver";
-import { AWebSocket, className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
+import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
 import { CgMessage, CgType } from "./CgProto";
-import { Message } from "google-protobuf";
 
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {
@@ -139,13 +138,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     } else {
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck
     }
-    // console.log(stime(), "CgBase.sendToSocket:", message.cgType ,{message, ackPromise})
+    // console.log(stime(this, ".sendToSocket:"), message.cgType, {message, ackPromise})
     return ackPromise
   }
   /**
    * send a useless "none" message.
    * @param group 
-   * @param client_id 
+   * @param client_id destination target client or undefined for the whole Group
    * @param cause 
    * @returns AckPromise
    */
@@ -171,8 +170,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /**
    * send_join client makes a connection to server group
    * @param group group name
-   * @param client_id client_id
-   * @param cause identifying string
+   * @param client_id specify 0 to register as referee; else undefined
+   * @param cause specify 'referee' to register as referee; else undefined
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
   send_join(group: string, client_id?: number, cause?: string): AckPromise {
@@ -192,7 +191,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * client leaves the connection to server group.
    * 
    * @param group group_name
-   * @param client_id the client_id
+   * @param client_id the client_id that is leaving the Group
    * @param cause identifying string
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
@@ -222,7 +221,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     //console.log(stime(this, ".parseEval:"), "Received:", message.cgType, message)
     switch (message.type) {
       case CgType.ack: {
-        let req = !!this.promise_of_ack && this.promise_of_ack.message;
+        let req = this.has_message_to_ack ? this.promise_of_ack.message : undefined;
         if (!(req instanceof CgMessage)) {
           console.log(stime(this, ".parseEval:"), "ignore spurious Ack:", message)
         } else if (message.success) {
