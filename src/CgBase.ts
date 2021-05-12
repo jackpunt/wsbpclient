@@ -56,11 +56,18 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   // this may be tricky... need to block non-ack from any client with outstanding ack
   // (send them an immediate nak)
-  /** private, but message.type is accessible */
-  private promise_of_ack: AckPromise; // also holds the message that was sent
-  get has_message_to_ack(): boolean { return !!this.promise_of_ack && !this.promise_of_ack.resolved }
-  get message_to_ack_type(): string { return this.has_message_to_ack ? this.promise_of_ack.message.cgType : "NONE" }
-
+  /** private, but message.type is accessible;   
+   * also holds the message that was sent.
+   * may resolve to: undefined (if no Ack is expected for message)
+   */
+  private promise_of_ack: AckPromise = new AckPromise(new CgMessage({type: CgType.none})).fulfill(null);
+  get ack_resolved(): boolean { return this.promise_of_ack.resolved }
+  get ack_message(): CgMessage { return this.promise_of_ack.message }
+  get ack_message_type(): string { return this.promise_of_ack.message.cgType }
+  
+  waitForAckThen(fil: () => void, rej?: () => void) {
+    this.promise_of_ack.then(fil, rej)
+  }
   deserialize(bytes: DataBuf<CgMessage>): CgMessage  {
     return CgMessage.deserialize(bytes)
   }
@@ -80,9 +87,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   onerror(ev: Event) {
     super.onerror(ev)    // maybe invoke sentError(ev)
-    if (this.promise_of_ack) {
-      this.promise_of_ack.reject(ev)
-    }
+    this.promise_of_ack.reject(ev)  // if not already resolved...
   }
   /**
    * 
@@ -91,9 +96,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   onclose(ev: CloseEvent) {
     console.log(stime(this, ".onClose:"), ev.code, ev.reason)
-    if (this.promise_of_ack) {
-      this.promise_of_ack.reject(ev.reason)
-    }
+    this.promise_of_ack.reject(ev.reason)
     super.onclose(ev) // send to upstream.onclose(ev)
   }
   // opts?: Exclude<CgMessageOpts, "cause" | "type">
@@ -221,7 +224,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     //console.log(stime(this, ".parseEval:"), "Received:", message.cgType, message)
     switch (message.type) {
       case CgType.ack: {
-        let req = this.has_message_to_ack ? this.promise_of_ack.message : undefined;
+        let req = this.ack_resolved ? undefined : this.ack_message
         if (!(req instanceof CgMessage)) {
           console.log(stime(this, ".parseEval:"), "ignore spurious Ack:", message)
         } else if (message.success) {
@@ -265,22 +268,14 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * Resolve the outstanding send Promise<CgMessage> 
    */
   eval_ack(message: CgMessage, req: CgMessage): void {
-    if (!!this.promise_of_ack) {
-      this.promise_of_ack.fulfill(message);
-      this.promise_of_ack = undefined  // invalidate this.promise_of_ack
-    }
-    return
+    this.promise_of_ack.fulfill(message); // maybe verify ack# ?
   }
   /**
    * process Nak from send. (join & leave do not fail?)
    * if override to process join/leave: include super.eval_nak() 
    */
   eval_nak(message: CgMessage, req: CgMessage) {
-    if (!!this.promise_of_ack) {
-      this.promise_of_ack.fulfill(message);
-      this.promise_of_ack = undefined  // invalidate this.promise_of_ack
-    }
-    return
+    this.promise_of_ack.fulfill(message);
   }
   /** informed that a client wants to join; check client_id & passcode. */
   eval_join(message: CgMessage): void {

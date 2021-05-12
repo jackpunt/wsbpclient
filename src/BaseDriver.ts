@@ -130,11 +130,11 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     throw new Error("Method not implemented.");
   }
 
-  /** process data from upstream by passing it downsteam. */
+  /** process data from upstream by passing it dnsteam. */
   sendBuffer(data: DataBuf<O>): void {
     this.dnstream.sendBuffer(data)
   }
-  /** process close by sending it upstream */
+  /** process close by sending it dnstream */
   closeStream(code: CLOSE_CODE, reason: string): void {
     this.dnstream.closeStream(code, reason)
   }
