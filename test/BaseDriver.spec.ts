@@ -65,21 +65,20 @@ class TestMsgAcked {
   message: CgMessage
   pAck: AckPromise
   pAckp: EzPromise<AckPromise>
-  constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, expectMsg: (msg: CgMessage) => void, expectRej?: (reason: any) => void) {
+  constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, expectMsg: (ack: CgMessage) => void, expectRej?: (reason: any) => void) {
     this.name = name;
     this.pAck = pAck
     this.pAckp = pAckp
     this.message = pAck.message
 
-    this.pAck.then((msg) => { expectMsg(msg) }, (reason: any) => { expectRej? expectRej(reason) : null })
+    this.pAck.then((ack) => { expectMsg(ack) }, (reason: any) => { expectRej? expectRej(reason) : null })
     this.pAck.finally(() => { pAckp.fulfill(pAck) }) 
     let listenForAck: EventListener =  (ev: Event) => {
       let data = (ev as MessageEvent).data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
-      let type = cgm.cgType
-      console.log(stime(this), name, "listenForAck:", {type, cgm})
+      let { cgType, success, cause, client_id} = cgm
+      console.log(stime(this), name, "listenForAck:", {cgType, success, cause, client_id})
       if (cgm.type === CgType.ack) {
-        this.pAck.fulfill(cgm)
         wsbase.removeEventListener('message', listenForAck)
       }
     }
@@ -160,11 +159,11 @@ test("CgClient.sendJoin & Ack", () => {
   return pPreSendp.finally(() => {
     let pSendJoin = cgclient.send_join(group_name, client_id, "passcode1")
     console.log(stime(), "CgClient.sendJoin:")
-    new TestMsgAcked("gClient.sendJoin", pSendJoin, pSendJoinp, (msg) => {
-      expect(msg.type).toEqual(CgType.ack)
-      expect(msg.group).toEqual(group_name)
-      expect(msg.cause).toEqual(cause)
-      expect(msg.client_id).toEqual(client_id)
+    new TestMsgAcked("gClient.sendJoin", pSendJoin, pSendJoinp, (ack) => {
+      expect(ack.type).toEqual(CgType.ack)
+      expect(ack.group).toEqual(group_name)
+      expect(ack.cause).toEqual(cause)
+      expect(ack.client_id).toEqual(client_id)
       expect(cgclient.isClient0()).toBe(false)
     })
     if (echoserver) {
@@ -172,10 +171,29 @@ test("CgClient.sendJoin & Ack", () => {
     }
   })
 })
+
+var pSendSendp = new EzPromise<AckPromise>()
+test("CgClient.sendSend & Ack", () => {
+  let cause = "send_done", client_id = cgclient.client_id // 1
+  return pSendJoinp.finally(() => {
+    let message = new CgMessage({type: CgType.none, cause: "test send", client_id: 0})
+    let pSendSend = cgclient.send_send(message, {nocc: true})
+    console.log(stime(), "CgClient.sendSend:", cgclient.innerMessageString(pSendSend.message))
+    new TestMsgAcked("CgClient.sendSend", pSendSend, pSendSendp, (ack) => {
+      expect(ack.type).toEqual(CgType.ack)
+      expect(ack.cause).toEqual(cause)
+      expect(ack.client_id).toBeUndefined()
+    })
+    if (echoserver) {
+      cgclient.sendAck(cause, {client_id, group: group_name})
+    }
+  })
+})
+
 var pSendLeavep = new EzPromise<AckPromise>()
 test("CgClient.sendLeave & Ack", () => {
   let cause = "test_done", client_id = cgclient.client_id // 1
-  return pSendJoinp.finally(() => {
+  return pSendSendp.finally(() => {
     let pSendLeave = cgclient.send_leave(group_name, client_id, cause)
     console.log(stime(), "CgClient.sendLeave:")
     new TestMsgAcked("CgClient.sendLeave", pSendLeave, pSendLeavep, (msg) => {
