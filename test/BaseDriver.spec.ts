@@ -86,6 +86,27 @@ class TestMsgAcked {
   }
 }
 
+// var client0p = new EzPromise<CgMessage>()
+// test("WebSocketBase.construct client0", done => {
+//   let closeP = new EzPromise<CloseInfo>()
+//   closeP.then((cinfo) => {
+//     console.log(stime("client0 closed"), cinfo)
+//     done()
+//   })
+//   let openP = new EzPromise<AWebSocket>()
+//   let wsb = new TestSocketBase() // using wsWebSocket
+//   openP.then((ws) => {
+//     let cgClient = new CgClient<never>()
+//     cgClient.connectDnStream(wsb)
+//     cgClient.send_join(group_name, 0, "referee").then((ack: CgMessage) => { 
+//       expect(ack.success).toBeTruthy()
+//       client0p.fulfill(ack)
+//       //done()
+//     })
+//   })
+//   wsb.connectWebSocket(testurl, openP, closeP)
+// })
+
 /** create a WebSocketBase */
 var wsbase = new TestSocketBase<pbMessage, pbMessage>()
 var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
@@ -202,7 +223,7 @@ test("CgClient.sendLeave & Ack", () => {
       expect(msg.cause).toEqual(cause)
       expect(msg.client_id).toEqual(cgclient.client_id)
       expect(cgclient.isClient0()).toBe(false)
-      console.log(stime(), "CgClient.sendLeave: okToClose.fulfill('", cause, "'")
+      console.log(stime(), `CgClient.sendLeave: okToClose.fulfill('${cause}')`)
       okToClose.fulfill(cause)               // signal end of test
     })
     if (echoserver) {

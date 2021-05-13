@@ -179,8 +179,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   /** replace the usual connectDnStream(WebSocketDriver) 
    * @param ws the WebSocket (or url) connection to be handled. (or null)
    * Can also be a SocketSender (ie another CnxHandler)
-   * @param msg_handler optional override PbMessage handler; default: 'this'
-  */
+   */
   connectWebSocket(ws: AWebSocket | string) {
     if (typeof (ws) === 'string') {
       let url = ws;
