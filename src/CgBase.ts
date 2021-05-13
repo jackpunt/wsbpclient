@@ -147,7 +147,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     if (!message.expectsAck()) {
       ackPromise.fulfill(undefined) // no Ack is coming
     } else {
-      //console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
+      console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck
     }
     // console.log(stime(this, ".sendToSocket:"), message.cgType, {message, ackPromise})
