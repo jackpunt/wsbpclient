@@ -32,7 +32,7 @@ class wsWebSocket implements WebSocket {
   get CONNECTING() {return this.wss.CONNECTING };
   get OPEN() { return this.wss.OPEN}
   get CLOSING() { return this.wss.CLOSING}
-  get CLOSED() { return this.wss.CLOSING}
+  get CLOSED() { return this.wss.CLOSED}
   addEventListener<K extends keyof WebSocketEventMap>(type: K, listener: (this: WebSocket, ev: WebSocketEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: any, listener: any, options?: any) {

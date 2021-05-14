@@ -98,7 +98,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @override
    */
   onclose(ev: CloseEvent) {
-    console.log(stime(this, ".onClose:"), ev.code, ev.reason)
+    console.log(stime(this, ".onClose:"), {code: ev.code, reason: ev.reason})
     this.promise_of_ack.reject(ev.reason)
     super.onclose(ev) // send to upstream.onclose(ev)
   }
@@ -124,41 +124,58 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** debugging utility */
   innerMessageString(m: CgMessage) {
-    //if (!m) return undefined
-    return m && ((m.msg !== undefined) ? `send[${m.msg[1]}+${m.msg.length}]` : `${m.cgType}(${m.cause || m.success})`)
+    // assert: msg defined ONLY for m.cgType=='send'; m.msg[1] is the INNER type
+    return m && ((m.msg !== undefined) ? `${m.cgType}[${m.msg[1]}+${m.msg.length}]` : `${m.cgType}(${m.cause || m.success})`)
   }
 
   /** 
-   * Send message downstream, toward websocket. 
+   * If message.expectsAck [Wait for this.ack_promise, then]
+   * sendBufer(message) downstream, toward websocket. 
    * 
-   * @return an AckPromise: &nbsp; &nbsp;
-   * .reject(error) if there is an error while sending &nbsp; &nbsp;
-   * .fulfill(ackMsg) when Ack for CgType: join, leave, send is received &nbsp; &nbsp;
-   * .fulfill(undefined) if sending an Ack or None...
+   * @param message to be serialized and sent dnstream
+   * @param ackPromise do NOT provide; new AckPromise(message)
+   * @final do NOT override
+   * @return AckPromise(message):  
+   * .reject(error) if there is an error while sending  
+   * .fulfill(ackMsg) when Ack for CgType: join, leave, send is received  
+   * .fulfill(undefined) if sending an Ack
    */
-  sendToSocket(message: CgMessage): AckPromise {
-    let ackPromise = new AckPromise(message)
+  sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
+    let defer = (message: CgMessage): boolean => {
+      return message.expectsAck() && !this.ack_resolved
+    }
+    if (defer(message)) {
+      // queue this message for sending when current message is ack'd:
+      //console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), this.innerMessageString(message), "resolved=", this.ack_resolved)
+      this.ack_promise.then((ack) => {
+        //console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), this.innerMessageString(ack))
+        this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
+      })
+      return ackPromise  // with message un-sent
+    }
+    // } else {
+
     let bytes = message.serializeBinary()
-    // TODO: reimplement so this does something useful
+    // TODO: reimplement so this does something useful: this.dnstream.onerror => () => reject_on_error() ??
     let reject_on_error = (error: Error | Event) => {
       ackPromise.reject((error as Error).message || (error as Event).type)
     }
     this.sendBuffer(bytes) // send message to socket
-    if (!message.expectsAck()) {
-      ackPromise.fulfill(undefined) // no Ack is coming
-    } else {
+    if (message.expectsAck()) {
       console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
-      this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck
+      this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
+    } else {
+      ackPromise.fulfill(undefined)    // no Ack is coming
     }
     // console.log(stime(this, ".sendToSocket:"), message.cgType, {message, ackPromise})
-    return ackPromise
+    return ackPromise   // with message sent
   }
   /**
    * send a useless "none" message.
    * @param group 
    * @param client_id destination target client or undefined for the whole Group
    * @param cause 
-   * @returns AckPromise
+   * @return AckPromise
    */
   send_none(group?: string, client_id?: number, cause?: string): AckPromise {
     let message = new CgMessage({ type: CgType.none, group: group, client_id, cause })
@@ -196,6 +213,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       this.client_id = ack.client_id
     }, (rej: any) => {
       console.log(stime(this, ".send_join:"), "rej=", rej)
+    })
+    promise.catch((reason:any) => {
+      console.log(stime(this, ".send_join:"), "catch=", reason)
     })
     return promise
   }
