@@ -55,6 +55,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /** client_id from Ack of join() */
   client_id: number;   // my client_id for this group.
 
+  /** used in parseEval logging, override in CgServerDriver */
+  get client_port(): string | number { return this.client_id; }
+
   // this may be tricky... need to block non-ack from any client with outstanding ack
   // (send them an immediate nak) in CgServerDriver
   /** 
@@ -250,12 +253,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   parseEval(message: CgMessage, wrapper?: pbMessage, ...args: any): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
-    //console.log(stime(this, ".parseEval:"), "Received:", message.cgType, message)
+    console.log(stime(this, `.parseEval[${this.client_port}] <-`), message.cgType, this.innerMessageString(message))
     switch (message.type) {
       case CgType.ack: {
         if (this.ack_resolved) {
           let { cgType, success, cause, client_id} = message
-          console.log(stime(this, ".parseEval:"), this.client_id, "ignore spurious Ack:", {cgType, success, cause, client_id})
+          console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", {cgType, success, cause})
           // console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.innerMessageString(this.promise_of_ack.message))
         } else if (message.success) {
           this.eval_ack(message, this.ack_message)
@@ -316,7 +319,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** informed that [other] client has departed */
   eval_leave(message: CgMessage): void {
-    console.log(stime(this, ".eval_leave:"), message)
+    console.log(stime(this, ".eval_leave:"), this.innerMessageString(message), message.toArray())
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // booted from group! (or i'm the ref[0] and everyone else has gone)

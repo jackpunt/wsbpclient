@@ -206,7 +206,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
     this.dispatchMessageEvent(data)
-    console.log(stime(this, ".wsmesssage"), `upstream.wsmessage(${data.byteLength}), upstream=`, className(this.upstream))
+    //console.log(stime(this, ".wsmesssage"), `upstream.wsmessage(${data.byteLength}), upstream=`, className(this.upstream))
     if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
   };
 
