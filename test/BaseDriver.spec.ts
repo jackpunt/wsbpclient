@@ -114,7 +114,7 @@ test("client0 Open", () => {
     cgClient0.send_join(group_name, 0, "referee").then((ack: CgMessage) => { 
       console.log(stime(), "client0 JOINED: ", ack.success)
       expect(ack.success).toBeTruthy()
-      expect(cgClient0.isClient0()).toBe(true)
+      expect(cgClient0.client_id).toBe(0)
       client0p.fulfill(ack)
       console.log(stime(), "client0 client0p.resolved=", client0p.resolved)
     })
@@ -212,7 +212,6 @@ test("CgClient.sendJoin & Ack", () => {
       expect(ack.cause).toEqual(cause)
       expect(ack.client_id).toEqual(expect_id)
       expect(cgclient.client_id).toEqual(expect_id)
-      expect(cgclient.isClient0()).toBe(false)
     })
     if (echoserver) {
       cgclient.sendAck(cause, {client_id: expect_id, group: group_name})
@@ -252,7 +251,6 @@ test("CgClient.sendLeave & Ack", () => {
       expect(msg.group).toEqual(group_name)
       expect(msg.cause).toEqual(cause)
       expect(msg.client_id).toEqual(cgclient.client_id)
-      expect(cgclient.isClient0()).toBe(false)
       console.log(stime(), `CgClient.sendLeave Ack'd: okToClose.fulfill('${cause}')`)
       okToClose.fulfill(cause)               // signal end of test
     })

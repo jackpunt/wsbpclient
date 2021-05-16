@@ -16,10 +16,5 @@ import type { pbMessage } from './types';
  * 
  */
 export class CgClient<O extends pbMessage> extends CgBase<O>  {
-  /**
-   * 
-   * @returns true if this CgClientCnx has role of Referee
-   */
-  isClient0(): boolean { return this.client_id === 0 }
 
 }
