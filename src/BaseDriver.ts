@@ -74,11 +74,11 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.dnstream = dnstream;
     return this;
   }
-  /** Connect to upstream driver: 
-   * <br>send open/error/close/wsmessage events to upstream.
+  /** Connect to upstream driver:  
+   * send open/error/close/wsmessage events to upstream.
    * 
-   * Typically override wsmessage(data<O>) to parseEval(deserialize(data<O>))
-   * <br>which may upstream.wsmessage(msg_data<I>)
+   * Typically override wsmessage(data\<O>) to parseEval(deserialize(data\<O>))  
+   * which may upstream.wsmessage(msg_data\<I>)
    * @param upstream
    */
   connectUpStream(upstream: WebSocketEventHandler<O>): void {
@@ -154,9 +154,9 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   /** 
    * stack the given drivers on top of this WebSocketBase 
    * 
-   * TODO: is there a Generic Type for the chain of drivers?
+   * TODO: is there a Generic Type for the chain of drivers (COD)?
    * 
-   * COD<I extends pbMessage, O extends pbMessage> = d0<I,X0>, d1<X0,X1>, d2<X1,X2 extends O>
+   * COD\<I extends pbMessage, O extends pbMessage> = d0\<I,X0>, d1\<X0,X1>, d2\<X1,X2 extends O>
    */
   connectStream(ws: AWebSocket | string, ...drivers: Array<{ new (): AnyWSD}> ): AnyWSD[] {
     let wsb = this
@@ -199,9 +199,9 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   }
 
   /**
-   * 
-   * @param data 
-   * @param wrapper 
+   * Incoming message from dnstream.
+   * @param data DataBuf containing \<I extends pbMessage>
+   * @param wrapper [unlikely to come from dnstream to this WebSocketBase]
    * @override BaseDriver
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {

@@ -32,7 +32,7 @@ export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
 //function create<Type>(c: { new (): Type }): Type { return new c(); }
 
 /** 
- * EzPromise\<CgMessage\> which holds the actual message that was sent.  
+ * EzPromise\<CgMessage> which holds the actual message that was sent.  
  * If (!this.message.expectsAck) then 
  *    (AckPromise.resolved && AckPromise.value) === undefined
  */
@@ -44,7 +44,7 @@ export class AckPromise extends EzPromise<CgMessage> {
 
 /**
  * Implement the base functiunality for the CgProto (client-group) Protocol.
- * BaseDriver\<I extends DataBuf\<CgMessage\>, O extends DataBuf\<pbMessage\>\>
+ * BaseDriver\<I extends DataBuf\<CgMessage>, O extends DataBuf\<pbMessage>>
  */
 export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
@@ -79,6 +79,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   }
   /** 
    * dispatch, deserialize && parseEval(message) 
+   * @param data DataBuf containing \<CgMessage>
+   * @param wrapper [unlikely...]
    * @override BaseDriver
    */
   wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
@@ -188,7 +190,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /**
    * send message from upstream to downstream
-   * @param message Object containing pbMessage<INNER>
+   * @param message Object containing pbMessage\<INNER>
    * @param opts  
    * client_id: 0 is ref, [null is to Group]  
    * nocc: true to prevent copy back, [false is cc to sender]  
@@ -298,7 +300,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   }
   /**
    * process positive Ack from join, leave, send.
-   * Resolve the outstanding send Promise<CgMessage> 
+   * Resolve the outstanding send Promise\<CgMessage> 
    */
   eval_ack(message: CgMessage, req: CgMessage): void {
     this.promise_of_ack.fulfill(message); // maybe verify ack# ?
@@ -335,12 +337,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * Process message delivered to Client-Group.
    * 
    * For CgServerCnx: override to sendToGroup()
-   * else server would parseEval on behalf of the client...?
+   * else Server would parseEval on behalf of the client...?
    * 
-   * For CgClient: delegate to upstream protocol handler
+   * For CgClient: delegate to upstream protocol handler,
+   * passing along the CgMessage wrapper.
    * 
-   * 
-   * @param message containing message<IN>
+   * @param message containing message\<IN extends pbMessage>
    * @returns 
    */
   eval_send(message: CgMessage): void {
