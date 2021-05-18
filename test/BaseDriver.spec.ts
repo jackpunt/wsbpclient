@@ -189,7 +189,7 @@ test("CgClient.sendNone & Nak", (done) => {
         expect(ack.success).toBe(true)
         expect(ack.cause).toBe(group_name)
       } else {
-        console.log(stime(), "cgserver returned", ack)
+        console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
         expect(ack.success).toBe(false)
         expect(ack.cause).toBe("not a member")
       }
@@ -226,6 +226,7 @@ test("CgClient.sendSend & Ack", () => {
     let ackp = cgclient.sendAck("spurious!") // no response from server: ignored
     expect(ackp.resolved).toBe(true)         // sendAck is immediately resolved(undefined)
     ackp.then((ack) => { expect(ack).toBeUndefined() })
+
     let message = new CgMessage({ type: CgType.none, cause: "test send", client_id: 0 })
     console.log(stime(), `CgClient.sendSend[${client_id}]:`, cgclient.innerMessageString(message))
     let pSendSend = cgclient.send_send(message, { nocc: true })

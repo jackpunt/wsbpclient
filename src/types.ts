@@ -17,8 +17,8 @@ export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "C
 // CLOSED = 3
 
 export type minWebSocket = {
-  send: (data:any)=>void, 
-  close: (code?: number, data?: string)=>void, 
+  send: (data: any) => void,
+  close: (code?: number, data?: string) => void,
   addEventListener: (method: string, listener: (event?: Event) => void) => void
 }
 /** a bytearray that decodes to type T */
@@ -33,6 +33,31 @@ export function stime (obj?: { constructor: { name: string; }; }, f?: string) {
   let name = obj ? (" "+className(obj)) : ""
   if (!!f) name = name + f
   return moment().format(fmt) + name
+}
+
+/**
+ * While predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
+ * @param pred 
+ * @param actionP 
+ * @param args context args supplied to pred and actionP
+ */
+export function whileP<T> (pred: (...args: any) => boolean, actionP: (...args: any) => Promise<T>, ...args: any) {
+  if (pred(...args)) {
+    actionP(...args).then(() => whileP(pred, actionP))
+  }
+}
+
+/**
+ * Until predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
+ * @param pred 
+ * @param actionP 
+ * @param args context args supplied to pred and actionP
+ */
+ export function untilP<T> (pred: (...args: any) => boolean, actionP: (...args: any) => Promise<T>, ...args: any) {
+  let p = actionP(...args)
+  if (!pred(...args)) {
+    p.then(() => untilP(pred, actionP))
+  }
 }
 
 /** standard HTML [Web]Socket events, for client (& server ws.WebSocket) */

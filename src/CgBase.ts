@@ -70,10 +70,6 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   get ack_message(): CgMessage { return this.promise_of_ack.message }
   get ack_message_type(): string { return this.promise_of_ack.message.cgType }
   
-  // see also: EzPromise.handle(fil, rej, catch, fin)
-  waitForAckThen(fil: (ack: CgMessage) => void, rej?: (reason: any) => void): void {
-    this.promise_of_ack.then(fil, rej)
-  }
   deserialize(bytes: DataBuf<CgMessage>): CgMessage  {
     return CgMessage.deserialize(bytes)
   }
@@ -146,10 +142,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * .fulfill(undefined) if sending an Ack
    */
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
-    let defer = (message: CgMessage): boolean => {
-      return message.expectsAck() && !this.ack_resolved
-    }
-    if (defer(message)) {
+    if ((message.expectsAck() && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
       //console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), this.innerMessageString(message), "resolved=", this.ack_resolved)
       this.ack_promise.then((ack) => {
@@ -158,8 +151,6 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       })
       return ackPromise  // with message un-sent
     }
-    // } else {
-
     let bytes = message.serializeBinary()
     // TODO: reimplement so this does something useful: this.dnstream.onerror => () => reject_on_error() ??
     let reject_on_error = (error: Error | Event) => {
