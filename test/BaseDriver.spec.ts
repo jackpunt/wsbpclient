@@ -223,7 +223,7 @@ var pSendSendp = new EzPromise<AckPromise>()
 test("CgClient.sendSend & Ack", () => {
   let cause = "send_done", client_id = cgclient.client_id // 1
   return pSendJoinp.finally(() => {
-    let ackp = cgclient.sendAck("spurious!") // no response from server: ignored
+    let ackp = cgclient.sendNak("spurious!") // no response from server: ignored
     expect(ackp.resolved).toBe(true)         // sendAck is immediately resolved(undefined)
     ackp.then((ack) => { expect(ack).toBeUndefined() })
 

@@ -16,7 +16,8 @@ CgMessage.prototype.expectsAck = function() {
 // Augment CgType with accessor that returns CgType as a string.
 Object.defineProperty(CgMessage.prototype, 'cgType', {
   get: function () {
-    return CgType[this.type]
+    let type = this.type
+    return (type !== CgType.ack) ? CgType[this.type] : this.success? 'Ack' : 'Nak'
   }
 })
 

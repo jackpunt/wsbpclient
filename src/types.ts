@@ -38,25 +38,27 @@ export function stime (obj?: { constructor: { name: string; }; }, f?: string) {
 /**
  * While predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
  * @param pred 
- * @param actionP 
+ * @param actionP returns a Promise<T>
+ * @param v value returned when actionP promise fulfills
  * @param args context args supplied to pred and actionP
  */
-export function whileP<T> (pred: (...args: any) => boolean, actionP: (...args: any) => Promise<T>, ...args: any) {
-  if (pred(...args)) {
-    actionP(...args).then(() => whileP(pred, actionP))
+export function whileP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: T, ...args: any) => Promise<T>, v?: T, ...args: any) {
+  if (pred(v, ...args)) {
+    let p = actionP(v, ...args)
+    p.then((v: T) => whileP(pred, actionP, v, ...args))
   }
 }
 
 /**
  * Until predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
- * @param pred 
- * @param actionP 
+ * @param actionP returns a Promise<T>
+ * @param v value returned when actionP promise fulfills
  * @param args context args supplied to pred and actionP
  */
- export function untilP<T> (pred: (...args: any) => boolean, actionP: (...args: any) => Promise<T>, ...args: any) {
-  let p = actionP(...args)
-  if (!pred(...args)) {
-    p.then(() => untilP(pred, actionP))
+export function untilP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: T, ...args: any) => Promise<T>, v?: T, ...args: any) {
+  let p = actionP(v, ...args)
+  if (!pred(v, ...args)) {
+    p.then((v: T) => untilP(pred, actionP, v, ...args))
   }
 }
 
