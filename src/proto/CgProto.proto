@@ -5,7 +5,7 @@ syntax="proto3";
  */
 enum CgType {
   none = 0;
-  ack = 1;    // success: true/flase, client_id?: [CgServer knows the waiting_client_cnx]
+  ack = 1;    // success: true/flase, client_id: Ref->CgServer send Ack/Nak to specified client (esp: join provide ident)
   send = 2;   // if supplied: [DM] send only to client_id (typically: 0 for ref), else: send_to_group
   join = 3;   // req {client_id?, cause?=passcode }; ack {client_id: new-id, cause?:passcode, group?: group_name }
   leave = 4;  // group, client_id, cause are optional [use client_id, group from socket]
@@ -13,7 +13,7 @@ enum CgType {
 /** Group protocol and carry nested message to send. */
 message CgMessage {
   CgType type = 1;       // indicates which fields are populated:
-  int32  client_id = 2;  // {leave:client-leaving, send:to-client, ack}; join responds with ack(client_id)
+  int32  client_id = 2;  // {leave:client-leaving, send:ack?: to-client/group}; join responds with ack(client_id)
   bool   success = 3;    // ack: true/false
   bytes  msg = 4;        // send: nested pbMessage<INNER>
   string group = 5;      // leave, join: "group-name"

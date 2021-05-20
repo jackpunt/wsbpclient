@@ -145,19 +145,21 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck() && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
-      //console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), this.innerMessageString(message), "resolved=", this.ack_resolved)
+      console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), this.innerMessageString(message), "resolved=", this.ack_resolved)
       this.ack_promise.then((ack) => {
-        //console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), this.innerMessageString(ack))
+        console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), this.innerMessageString(ack))
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
       })
       return ackPromise  // with message un-sent
     }
-    let bytes = message.serializeBinary()
     // TODO: reimplement so this does something useful: this.dnstream.onerror => () => reject_on_error() ??
-    let reject_on_error = (error: Error | Event) => {
+    const reject_on_error = (error: Error | Event) => {
       ackPromise.reject((error as Error).message || (error as Event).type)
     }
+
+    const bytes = message.serializeBinary()
     this.sendBuffer(bytes) // send message to socket
+
     if (message.expectsAck()) {
       console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
@@ -259,6 +261,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
         } else {
           this.eval_nak(message, this.ack_message)
         }
+        this.promise_of_ack.fulfill(message)
         break
       }
       case CgType.join: {
@@ -350,7 +353,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** not used */
   eval_none(message: CgMessage) {
-    console.log(stime(this, ".eval_none:"), message)
+    console.log(stime(this, ".eval_none:"), message.toArray())
     this.sendAck("none done", {client_id: message.client_from})
     return
   }

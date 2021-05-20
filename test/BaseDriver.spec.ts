@@ -54,7 +54,7 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
   }
 }
 
-class TestCgClient<O extends pbMessage> extends CgClient<O> {
+class TestCgClient<O extends CgMessage> extends CgClient<O> {
   eval_send(message: CgMessage) {
     console.log(stime(this, `.eval_send[${this.client_id}]`), this.innerMessageString(message))
     this.sendAck("test-approve", {client_id: message.client_from})
@@ -93,8 +93,27 @@ class TestMsgAcked {
     wsbase.addEventListener('message', listenForAck)
   }
 }
-class TestSocketBaseR<I extends pbMessage,O extends pbMessage> extends TestSocketBase<I,O> {}
-class TestCgClientR<O extends pbMessage> extends TestCgClient<O> {}
+class TestSocketBaseR<I extends CgMessage, O extends CgMessage> extends TestSocketBase<I,O> {}
+class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
+  eval_send(message: CgMessage) {
+    console.log(stime(this, `.eval_send[${message.client_from} -> ${this.client_id}]`), this.innerMessageString(message))
+    let msg = CgMessage.deserialize(message.msg)
+    if (msg.type === CgType.none && msg.cause == "NakMe") {
+      this.sendNak(msg.cause, { client_id: message.client_from })
+      return
+    }
+    this.sendAck("test-approve", {client_id: message.client_from})
+  }
+  // eval_none(message: CgMessage, wrapper?: CgMessage) {
+  //   if (message.cause === "NakMe") {
+  //     console.log(stime(this, `.eval_none`), message.toArray())
+  //     this.sendNak(message.cause, { client_id: wrapper.client_from })
+  //     return
+  //   } else {
+  //     super.eval_none(message) // log & Ack
+  //   }
+  // }
+}
 
 var client0p = new EzPromise<CgMessage>()
 var client1p = new EzPromise<CgMessage>()
@@ -178,12 +197,12 @@ test("WebSocket connected & OPEN", () => {
 })
 
 var group_name = "test_group"
-var pPreSendp = new EzPromise<AckPromise>()  // expect Nak<"not a member">
 
-test("CgClient.sendNone & Nak", (done) => {
+var pPreSendp = new EzPromise<AckPromise>()  // expect Nak<"not a member">
+test("CgClient.beforeJoinFail", (done) => {
   return openP.then((ws) => {
-    let pPreSend = cgclient.send_none(group_name, 0, "preJoinFail")
-    new TestMsgAcked("CgClient.sendNone", pPreSend, pPreSendp, (ack) => {
+    let pPreSend = cgclient.send_none(group_name, 0, "beforeJoinFail")
+    new TestMsgAcked("CgClient.beforeJoinFail", pPreSend, pPreSendp, (ack) => {
       if (echoserver) {
         console.log(stime(), "echoserver returned", ack)
         expect(ack.success).toBe(true)
@@ -241,10 +260,34 @@ test("CgClient.sendSend & Ack", () => {
   })
 })
 
+var pSendNoneNakp = new EzPromise<AckPromise>();
+test("CgClient.sendNone for Nak", (done) => {
+  return pSendSendp.then((ws) => {
+    let cause = "NakMe", client_id = 0
+    let message = new CgMessage({ type: CgType.none, cause, client_id })
+    console.log(stime(), `CgClient.sendNoneNak[${client_id}]:`, cgclient.innerMessageString(message))
+    let pSendNonep = cgclient.send_send(message, { nocc: true })
+    new TestMsgAcked("CgClient.sendNoneNak", pSendNonep, pSendNoneNakp, (ack) => {
+      if (echoserver) {
+        console.log(stime(), "echoserver returned", ack)
+        expect(ack.success).toBe(true)
+        expect(ack.cause).toBe(cause)
+      } else {
+        console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
+        expect(ack.success).toBe(false)
+        expect(ack.cause).toBe(cause)
+      }
+      done() 
+    }, (rej) => { 
+      fail()
+    })
+  })
+}, testTimeout - 2000)
+
 var pSendLeavep = new EzPromise<AckPromise>()
 test("CgClient.sendLeave & Ack", () => {
   let cause = "test_done", client_id = cgclient.client_id // 1
-  return pSendSendp.finally(() => {
+  return pSendNoneNakp.finally(() => {
     console.log(stime(), "CgClient.sendLeave & Ack:")
     let pSendLeave = cgclient.send_leave(group_name, client_id, cause)
     new TestMsgAcked("CgClient.sendLeave & Ack", pSendLeave, pSendLeavep, (msg) => {
