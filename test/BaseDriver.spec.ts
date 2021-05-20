@@ -21,6 +21,25 @@ function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.Normal
 var close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "test done" }
 var close_fail: CloseInfo = { code: CLOSE_CODE.Empty, reason: "failed"}
 
+var testPromises: EzPromise<any>[] = [];
+function testMessage<W>(name: string, thisP: EzPromise<W>, msgGen: () => AckPromise,
+  expectMsg: (ack: CgMessage) => void, 
+  expectRej?: (reason: any) => void,
+  afterPrep?: () => void,
+  timeout: number = testTimeout): EzPromise<AckPromise> {
+  let priorP = thisP || testPromises[0]
+  let nextP = new EzPromise<AckPromise>()
+  test(name, () => {
+    return priorP.then((fil: W) => {
+      let msgP = msgGen()
+      new TestMsgAcked(name, msgP, nextP, expectMsg, expectRej)
+      if (!!afterPrep) afterPrep()
+    })
+  }, timeout)
+  testPromises.unshift(nextP)
+  return nextP
+}
+
 /**
  * A WebSocketBase that uses wsWebSocket for a WebSocket.
  * 
@@ -73,13 +92,14 @@ class TestMsgAcked {
   message: CgMessage
   pAck: AckPromise
   pAckp: EzPromise<AckPromise>
-  constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, expectMsg: (ack: CgMessage) => void, expectRej?: (reason: any) => void) {
+  constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, 
+    expectMsg: (ack: CgMessage) => void, expectRej?: (reason: any) => void) {
     this.name = name;
     this.pAck = pAck
     this.pAckp = pAckp
     this.message = pAck.message
 
-    this.pAck.then((ack) => { expectMsg(ack) }, (reason: any) => { expectRej? expectRej(reason) : null })
+    this.pAck.then((ack) => { expectMsg(ack) }, (reason: any) => { !!expectRej && expectRej(reason) })
     this.pAck.finally(() => { pAckp.fulfill(pAck) }) 
     let listenForAck: EventListener =  (ev: Event) => {
       let data = (ev as MessageEvent).data as DataBuf<CgMessage>
@@ -104,19 +124,9 @@ class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
     }
     this.sendAck("test-approve", {client_id: message.client_from})
   }
-  // eval_none(message: CgMessage, wrapper?: CgMessage) {
-  //   if (message.cause === "NakMe") {
-  //     console.log(stime(this, `.eval_none`), message.toArray())
-  //     this.sendNak(message.cause, { client_id: wrapper.client_from })
-  //     return
-  //   } else {
-  //     super.eval_none(message) // log & Ack
-  //   }
-  // }
 }
 
 var client0p = new EzPromise<CgMessage>()
-var client1p = new EzPromise<CgMessage>()
 var closeP0 = new EzPromise<CloseInfo>()
 
 var cgClient0 = new TestCgClientR<never>()
@@ -140,11 +150,6 @@ test("client0 Open", () => {
   })
 })
 
-
-
-setTimeout(() => {
-  client1p.fulfill(new CgMessage({type: CgType.none}))
-}, 100);
 /** create a WebSocketBase */
 var wsbase = new TestSocketBase<pbMessage, pbMessage>()
 var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
@@ -198,76 +203,62 @@ test("WebSocket connected & OPEN", () => {
 
 var group_name = "test_group"
 
-var pPreSendp = new EzPromise<AckPromise>()  // expect Nak<"not a member">
-test("CgClient.beforeJoinFail", (done) => {
-  return openP.then((ws) => {
-    let pPreSend = cgclient.send_none(group_name, 0, "beforeJoinFail")
-    new TestMsgAcked("CgClient.beforeJoinFail", pPreSend, pPreSendp, (ack) => {
-      if (echoserver) {
-        console.log(stime(), "echoserver returned", ack)
-        expect(ack.success).toBe(true)
-        expect(ack.cause).toBe(group_name)
-      } else {
-        console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
-        expect(ack.success).toBe(false)
-        expect(ack.cause).toBe("not a member")
-      }
-      done() 
-    }, (rej) => { 
-      fail()
-    })
-  })
-}, testTimeout - 2000)
+testMessage("CgClient.preJoinFail", openP,
+  () => cgclient.send_none(group_name, 0, "preJoinFail"),
+  (ack) => {
+    if (echoserver) {
+      console.log(stime(), "echoserver returned", ack)
+      expect(ack.success).toBe(true)
+      expect(ack.cause).toBe(group_name)
+    } else {
+      console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
+      expect(ack.success).toBe(false)
+      expect(ack.cause).toBe("not a member")
+    }
+  }, (rej) => {
+    fail()
+  }, null, testTimeout - 2000);
 
-var pSendJoinp = new EzPromise<AckPromise>() // from send_join
-test("CgClient.sendJoin & Ack", () => {
-  let cause = "joined", expect_id = 1
-  return pPreSendp.finally(() => {
-    let pSendJoin = cgclient.send_join(group_name, expect_id, "passcode1")
-    console.log(stime(), "CgClient.sendJoin:")
-    new TestMsgAcked("gClient.sendJoin", pSendJoin, pSendJoinp, (ack) => {
+{ let cause = "joined", expect_id = 1
+  testMessage("CgClient.sendJoin & Ack", null,
+    () => cgclient.send_join(group_name, expect_id, "passcode1"),
+    (ack) => {
       expect(ack.type).toEqual(CgType.ack)
       expect(ack.group).toEqual(group_name)
       expect(ack.cause).toEqual(cause)
       expect(ack.client_id).toEqual(expect_id)
       expect(cgclient.client_id).toEqual(expect_id)
-    })
-    if (echoserver) {
-      cgclient.sendAck(cause, {client_id: expect_id, group: group_name})
-    }
-  })
-})
+    }, () => {
+    echoserver && cgclient.sendAck(cause, {client_id: expect_id, group: group_name})
+  })}
 
-var pSendSendp = new EzPromise<AckPromise>()
-test("CgClient.sendSend & Ack", () => {
-  let cause = "send_done", client_id = cgclient.client_id // 1
-  return pSendJoinp.finally(() => {
-    let ackp = cgclient.sendNak("spurious!") // no response from server: ignored
-    expect(ackp.resolved).toBe(true)         // sendAck is immediately resolved(undefined)
-    ackp.then((ack) => { expect(ack).toBeUndefined() })
+{ let client_id = cgclient.client_id, cause = "send_done"; // 1
+  testMessage("CgClient.sendSend & Ack", null,
+    () => {
+      let ackp = cgclient.sendNak("spurious!") // no response from server: ignored
+      expect(ackp.resolved).toBe(true)         // sendAck is immediately resolved(undefined)
+      ackp.then((ack) => { expect(ack).toBeUndefined() })
 
-    let message = new CgMessage({ type: CgType.none, cause: "test send", client_id: 0 })
-    console.log(stime(), `CgClient.sendSend[${client_id}]:`, cgclient.innerMessageString(message))
-    let pSendSend = cgclient.send_send(message, { nocc: true })
-    new TestMsgAcked("CgClient.sendSend", pSendSend, pSendSendp, (ack) => {
+      let message = new CgMessage({ type: CgType.none, cause: "test send", client_id: 0 })
+      console.log(stime(), `CgClient.sendSend[${client_id}]:`, cgclient.innerMessageString(message))
+      return cgclient.send_send(message, { nocc: true })
+    }, (ack) => {
       expect(ack.type).toEqual(CgType.ack)
       expect(ack.cause).toEqual(cause)
       expect(ack.client_id).toBeUndefined()
-    })
-    if (echoserver) {
-      cgclient.sendAck(cause, { client_id, group: group_name })
+    }, null, () => {
+      echoserver && cgclient.sendAck(cause, { client_id, group: group_name })
     }
-  })
-})
+  )}
 
-var pSendNoneNakp = new EzPromise<AckPromise>();
-test("CgClient.sendNone for Nak", (done) => {
-  return pSendSendp.then((ws) => {
-    let cause = "NakMe", client_id = 0
-    let message = new CgMessage({ type: CgType.none, cause, client_id })
-    console.log(stime(), `CgClient.sendNoneNak[${client_id}]:`, cgclient.innerMessageString(message))
-    let pSendNonep = cgclient.send_send(message, { nocc: true })
-    new TestMsgAcked("CgClient.sendNoneNak", pSendNonep, pSendNoneNakp, (ack) => {
+{ let cause = "NakMe"
+  testMessage("CgClient.sendNone for Nak", null,
+    () => {
+      let client_id = 0
+      let message = new CgMessage({ type: CgType.none, cause, client_id })
+      console.log(stime(), `CgClient.sendNoneNak[${client_id}]:`, cgclient.innerMessageString(message))
+      return cgclient.send_send(message, { nocc: true })
+    }, (ack) => {
       if (echoserver) {
         console.log(stime(), "echoserver returned", ack)
         expect(ack.success).toBe(true)
@@ -277,32 +268,25 @@ test("CgClient.sendNone for Nak", (done) => {
         expect(ack.success).toBe(false)
         expect(ack.cause).toBe(cause)
       }
-      done() 
-    }, (rej) => { 
+    }, (rej) => {
       fail()
-    })
-  })
-}, testTimeout - 2000)
-
-var pSendLeavep = new EzPromise<AckPromise>()
-test("CgClient.sendLeave & Ack", () => {
-  let cause = "test_done", client_id = cgclient.client_id // 1
-  return pSendNoneNakp.finally(() => {
-    console.log(stime(), "CgClient.sendLeave & Ack:")
-    let pSendLeave = cgclient.send_leave(group_name, client_id, cause)
-    new TestMsgAcked("CgClient.sendLeave & Ack", pSendLeave, pSendLeavep, (msg) => {
+    }, null, testTimeout - 2000)
+}
+{ let cause = "test_done", client_id = cgclient.client_id // 1
+  testMessage("CgClient.sendLeave & Ack", null,
+    () => cgclient.send_leave(group_name, client_id, cause),
+    (msg) => {
       expect(msg.type).toEqual(CgType.ack)
       expect(msg.group).toEqual(group_name)
       expect(msg.cause).toEqual(cause)
       expect(msg.client_id).toEqual(cgclient.client_id)
       console.log(stime(), `CgClient.sendLeave Ack'd: okToClose.fulfill('${cause}')`)
       okToClose.fulfill(cause)               // signal end of test
-    })
-    if (echoserver) {
-      cgclient.sendAck(cause, {client_id, group: group_name})
-    }
-  })
-})
+    },
+    () => !!echoserver && cgclient.sendAck(cause, { client_id, group: group_name })
+  )
+}
+
 
 /** Promise filled({code, reason}) when socket is closed. */
 var closeP: EzPromise<CloseInfo> = new EzPromise<CloseInfo>()
@@ -321,8 +305,8 @@ describe("Closing", () => {
     })
   })
 
-  test("BaseDriver.client closed", (done) => {
-    closeP.then((info: CloseInfo) => {
+  test("BaseDriver.client closed", () => {
+    return closeP.then((info: CloseInfo) => {
       let { code, reason } = info
       console.log(stime(), "client closed:", info, readyState(wsbase.ws))
       if (code == close_fail.code) {
@@ -331,32 +315,28 @@ describe("Closing", () => {
         expect(code).toBe(close_normal.code)
         expect(reason || close_normal.reason).toBe(close_normal.reason)
       }
-      done()
     },
       (rej: any) => {
         expect(rej).toBe(close_fail.reason)
-        done()
       })
   }, testTimeout)
 
-  test("BaseDriver.verify closed", (done) => {
+  test("BaseDriver.verify closed", () => {
     return closeP.finally(() => {
       console.log(stime(), "verify closed:", readyState(wsbase.ws))
       setTimeout(() => {
         expect(wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
-        done()
       }, 100)
     })
   })
 
-  test("client0 Close", (done) => {
+  test("client0 Close", () => {
     return closeP0.then((cinfo) => {
       console.log(stime(), "client0 CLOSED:", cinfo, readyState(wsbase.ws))
       setTimeout(() => {
         console.log(stime(), "client0 END OF TEST!")
         setTimeout(() => {
           expect(wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
-          done()
         }, 100)
       }, 10)
     })
