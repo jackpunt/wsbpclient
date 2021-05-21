@@ -37,10 +37,10 @@ export function stime (obj?: { constructor: { name: string; }; }, f?: string) {
 
 /**
  * While predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
- * @param pred 
- * @param actionP returns a Promise<T>
- * @param v value returned when actionP promise fulfills
- * @param args context args supplied to pred and actionP
+ * @param pred if true then invoke actionP().then(-recurse-)
+ * @param actionP preforms some computation and returns a Promise\<T>
+ * @param v value: \<T> returned when actionP promise fulfills
+ * @param args context args supplied to pred and actionP (v, ...args)
  */
 export function whileP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: T, ...args: any) => Promise<T>, v?: T, ...args: any) {
   if (pred(v, ...args)) {
@@ -50,16 +50,15 @@ export function whileP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: 
 }
 
 /**
- * Until predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
- * @param actionP returns a Promise<T>
- * @param v value returned when actionP promise fulfills
- * @param args context args supplied to pred and actionP
+ * Invoke actionP and then (when Promise is fulfilled) if (pred is false) recurse 
+ * @param pred if false then (-recurse-)
+ * @param actionP preforms some computation and returns a Promise\<T>
+ * @param v value: \<T> returned when actionP promise fulfills
+ * @param args context args supplied to pred and actionP (v, ...args)
  */
 export function untilP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: T, ...args: any) => Promise<T>, v?: T, ...args: any) {
   let p = actionP(v, ...args)
-  if (!pred(v, ...args)) {
-    p.then((v: T) => untilP(pred, actionP, v, ...args))
-  }
+  p.then((v: T) => !pred(v, ...args) && untilP(pred, actionP, v, ...args))
 }
 
 /** standard HTML [Web]Socket events, for client (& server ws.WebSocket) */
