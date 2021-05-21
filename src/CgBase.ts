@@ -62,11 +62,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   // this may be tricky... need to block non-ack from any client with outstanding ack
   // (send them an immediate nak) in CgServerDriver
   /** 
+   * Promise for last outbound message that expects an Ack.
    * private, but .resolved and .message are accessible:  
-   * message holds the last sent message that expects an Ack.  
    */
   private promise_of_ack: AckPromise = new AckPromise(new CgMessage({type: CgType.none})).fulfill(null);
   get ack_promise(): AckPromise { return this.promise_of_ack } // read-only for debugging CgServerDriver
+  /** true if last outbound request has been Ack'd */
   get ack_resolved(): boolean { return this.promise_of_ack.resolved }
   get ack_message(): CgMessage { return this.promise_of_ack.message }
   get ack_message_type(): string { return this.promise_of_ack.message.cgType }

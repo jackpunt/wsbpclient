@@ -20,4 +20,5 @@ message CgMessage {
   string cause = 6;      // leave: "resign" | "robot"; ack: cause of !success; join: "client name"
   bool   nocc  = 7;      // set true to NOT get copy of CgType.send
   int32  client_from = 8;// client_id of message originator (set in server)
+  string info = 9;       // non-specific info for traceing & debugging
 }
