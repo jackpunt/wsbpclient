@@ -219,7 +219,7 @@ testMessage("CgClient.preJoinFail", openP,
     fail()
   }, null, testTimeout - 2000);
 
-{ let cause = "joined", expect_id = 1
+{ let cause = "ref-approved", expect_id = 1
   testMessage("CgClient.sendJoin & Ack", null,
     () => cgclient.send_join(group_name, expect_id, "passcode1"),
     (ack) => {
