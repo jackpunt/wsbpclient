@@ -58,8 +58,9 @@ Object.defineProperty(CgMessage.prototype, 'msgStr', {
   get: function() {
     let thss: CgMessage = this
     if (thss.msg === undefined) return undefined
+    let strFromChar = (char: number) => (char >= 32) ? String.fromCharCode(char) : `\\${char}` ;
     let chars = [], bytes = (thss.msg as Uint8Array);
-    for( let i = 2; i<thss.msg.length; i++) chars.push(String.fromCharCode(bytes[i])) 
+    for( let i = 2; i<thss.msg.length; i++) chars.push(strFromChar(bytes[i])) 
     return `${thss.cgType}[${thss.msg[1]}+${thss.msg.length}${":".concat(...chars)}]`
   }
 })
