@@ -71,12 +71,28 @@ class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocket
       closeP.fulfill(normalClose(ev.reason))
     })
   }
+  /** return this.on('message', handle, {once: true}) */
+  listenFor(type: CgType, handle: (msg: CgMessage)=>void = (msg)=>{}): EventListener {
+    let listener = (ev: Event) => {
+      let data = (ev as MessageEvent).data as DataBuf<CgMessage>
+      let cgm = CgMessage.deserialize(data)
+      let outObj = cgm.outObject()
+      console.log(stime(this, `.listenFor(${CgType[type]})`), outObj)
+      if (cgm.type === type) {
+        wsbase.removeEventListener('message', listener)
+        handle(cgm)
+      }
+    }
+    this.addEventListener('message', listener)
+    return listener
+  }
 }
 
 class TestCgClient<O extends CgMessage> extends CgClient<O> {
   eval_send(message: CgMessage) {
-    console.log(stime(this, `.eval_send[${this.client_id}]`), this.innerMessageString(message))
-    this.sendAck("test-approve", {client_id: message.client_from})
+    let inner_msg = CgMessage.deserialize(message.msg)
+    console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.outObject())
+    this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
   }
 
   /** when send_leave has been Ack'd, typically: closeStream */
@@ -92,6 +108,7 @@ class TestMsgAcked {
   message: CgMessage
   pAck: AckPromise
   pAckp: EzPromise<AckPromise>
+  /** msgGen creates pAck, run test.expect() when that ack/nak is fulfilled by CgBase.parseEval(ack/nak). */
   constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, 
     expectMsg: (ack: CgMessage) => void, expectRej?: (reason: any) => void) {
     this.name = name;
@@ -101,28 +118,32 @@ class TestMsgAcked {
 
     this.pAck.then((ack) => { expectMsg(ack) }, (reason: any) => { !!expectRej && expectRej(reason) })
     this.pAck.finally(() => { pAckp.fulfill(pAck) }) 
-    let listenForAck: EventListener =  (ev: Event) => {
-      let data = (ev as MessageEvent).data as DataBuf<CgMessage>
-      let cgm = CgMessage.deserialize(data)
-      let { cgType, success, cause, client_id} = cgm
-      console.log(stime(this), name, "listenForAck:", {cgType, success, cause, client_id})
-      if (cgm.type === CgType.ack) {
-        wsbase.removeEventListener('message', listenForAck)
-      }
-    }
-    wsbase.addEventListener('message', listenForAck)
+    let handler = (msg: CgMessage) => { console.log(stime(this, `.listenForAck: FOUND FOR '${this.name}'`), msg.cgType) }
+    wsbase.listenFor(CgType.ack, handler)
   }
 }
 class TestSocketBaseR<I extends CgMessage, O extends CgMessage> extends TestSocketBase<I,O> {}
+/** client in role of Referee */
 class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
   eval_send(message: CgMessage) {
     console.log(stime(this, `.eval_send[${message.client_from} -> ${this.client_id}]`), this.innerMessageString(message))
-    let msg = CgMessage.deserialize(message.msg)
-    if (msg.type === CgType.none && msg.cause == "NakMe") {
-      this.sendNak(msg.cause, { client_id: message.client_from })
+    let inner_msg = CgMessage.deserialize(message.msg) // inner CgMessage, type==CgType.none
+    if (inner_msg.type === CgType.none && inner_msg.cause == "NakMe") {
+      this.sendNak(inner_msg.cause, { client_id: message.client_from })
       return
     }
-    this.sendAck("test-approve", {client_id: message.client_from})
+    if (inner_msg.type === CgType.none && inner_msg.cause == "MsgInAck") {
+      console.log(stime(this, `.eval_send[${this.client_id}]`), "Augment MsgInAck")
+      inner_msg.info = inner_msg.cause   // augment inner 'none' message: info: "MsgInAck"
+      let aug_msg = inner_msg.serializeBinary()  // prep 'none' message to insert into original 'send'
+      message.msg = aug_msg
+      message.info = "send(aug_none)"
+      let aug_send = message.serializeBinary() // augment & re-serialize original CgMessage({type: CgType.send}, ...)
+      let pAck = this.sendAck(inner_msg.cause, { client_id: message.client_from, msg: aug_send })
+      console.log(stime(this, `.eval_send returning Ack`), pAck.message.outObject())
+      return
+    }
+    this.sendAck("send-approved", {client_id: message.client_from})
   }
 }
 
@@ -243,14 +264,40 @@ testMessage("CgClient.preJoinFail", openP,
       console.log(stime(), `CgClient.sendSend[${client_id}]:`, cgclient.innerMessageString(message))
       return cgclient.send_send(message, { nocc: true })
     }, (ack) => {
+      console.log(stime(), `CgClient.sendSend returned ack:`, cgclient.innerMessageString(ack))
       expect(ack.type).toEqual(CgType.ack)
       expect(ack.cause).toEqual(cause)
       expect(ack.client_id).toBeUndefined()
+      expect(ack.msg).toBeUndefined()
     }, null, () => {
-      echoserver && cgclient.sendAck(cause, { client_id, group: group_name })
+      echoserver && cgclient.sendAck(cause, { client_id })
     }
   )}
-
+  { let client_id = cgclient.client_id, cause = "MsgInAck", inner_sent: CgMessage
+  testMessage("CgClient.sendSend MsgInAck", null,
+    () => {
+      let client_id = 0
+      let message = new CgMessage({ type: CgType.none, cause, client_id })
+      console.log(stime(), `CgClient.sendSendMsg[${client_id}]:`, cgclient.innerMessageString(message))
+      return cgclient.send_send(message, { nocc: false, client_id: undefined })
+    }, (ack) => {
+      console.log(stime(), "CgClient.sendSendMsg returned ack:", cgclient.innerMessageString(ack))
+      expect(ack.success).toBe(true)
+      expect(ack.cause).toBe('send_done')  // all 'send' are Ack by server with 'send_done' QQQQ: should we fwd Ack from Referee?
+      console.log(stime(this), "CgClient.sendSendMsg returned message", inner_sent.outObject())
+      expect(inner_sent.type).toEqual(CgType.none)
+      expect(inner_sent.cause).toEqual(cause)
+      expect(inner_sent.info).toEqual(cause)
+    }, (rej) => {
+      fail()
+    }, () => {
+      echoserver && cgclient.sendAck('send_done', { client_id })
+      wsbase.listenFor(CgType.send, (msg) => {
+        inner_sent = CgMessage.deserialize(msg.msg)
+        console.log(stime(), `RECEIVED SEND: ${inner_sent.outObject()}`)
+      } )
+    }, testTimeout - 2000)
+}
 { let cause = "NakMe"
   testMessage("CgClient.sendNone for Nak", null,
     () => {
@@ -272,6 +319,7 @@ testMessage("CgClient.preJoinFail", openP,
       fail()
     }, null, testTimeout - 2000)
 }
+
 { let cause = "test_done", client_id = cgclient.client_id // 1
   testMessage("CgClient.sendLeave & Ack", null,
     () => cgclient.send_leave(group_name, client_id, cause),
@@ -330,13 +378,14 @@ describe("Closing", () => {
     })
   })
 
-  test("client0 Close", () => {
+  test("client0 Close", (done) => {
     return closeP0.then((cinfo) => {
       console.log(stime(), "client0 CLOSED:", cinfo, readyState(wsbase.ws))
       setTimeout(() => {
         console.log(stime(), "client0 END OF TEST!")
         setTimeout(() => {
           expect(wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
+          done()
         }, 100)
       }, 10)
     })

@@ -11,15 +11,17 @@ export class CgMessage extends pb_1.Message {
         type?: CgType;
         client_id?: number;
         success?: boolean;
+        client_from?: number;
+        cause?: string;
+        info?: string;
+        ident?: number;
         msg?: Uint8Array;
         group?: string;
-        cause?: string;
         nocc?: boolean;
-        client_from?: number;
-        info?: string;
+        acks?: CgMessage[];
     }) {
         super();
-        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], []);
+        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [11], []);
         if (!Array.isArray(data) && typeof data == "object") {
             if ("type" in data && data.type != undefined) {
                 this.type = data.type;
@@ -30,23 +32,29 @@ export class CgMessage extends pb_1.Message {
             if ("success" in data && data.success != undefined) {
                 this.success = data.success;
             }
+            if ("client_from" in data && data.client_from != undefined) {
+                this.client_from = data.client_from;
+            }
+            if ("cause" in data && data.cause != undefined) {
+                this.cause = data.cause;
+            }
+            if ("info" in data && data.info != undefined) {
+                this.info = data.info;
+            }
+            if ("ident" in data && data.ident != undefined) {
+                this.ident = data.ident;
+            }
             if ("msg" in data && data.msg != undefined) {
                 this.msg = data.msg;
             }
             if ("group" in data && data.group != undefined) {
                 this.group = data.group;
             }
-            if ("cause" in data && data.cause != undefined) {
-                this.cause = data.cause;
-            }
             if ("nocc" in data && data.nocc != undefined) {
                 this.nocc = data.nocc;
             }
-            if ("client_from" in data && data.client_from != undefined) {
-                this.client_from = data.client_from;
-            }
-            if ("info" in data && data.info != undefined) {
-                this.info = data.info;
+            if ("acks" in data && data.acks != undefined) {
+                this.acks = data.acks;
             }
         }
     }
@@ -68,53 +76,67 @@ export class CgMessage extends pb_1.Message {
     set success(value: boolean) {
         pb_1.Message.setField(this, 3, value);
     }
-    get msg() {
-        return pb_1.Message.getField(this, 4) as Uint8Array;
-    }
-    set msg(value: Uint8Array) {
-        pb_1.Message.setField(this, 4, value);
-    }
-    get group() {
-        return pb_1.Message.getField(this, 5) as string;
-    }
-    set group(value: string) {
-        pb_1.Message.setField(this, 5, value);
-    }
-    get cause() {
-        return pb_1.Message.getField(this, 6) as string;
-    }
-    set cause(value: string) {
-        pb_1.Message.setField(this, 6, value);
-    }
-    get nocc() {
-        return pb_1.Message.getField(this, 7) as boolean;
-    }
-    set nocc(value: boolean) {
-        pb_1.Message.setField(this, 7, value);
-    }
     get client_from() {
-        return pb_1.Message.getField(this, 8) as number;
+        return pb_1.Message.getField(this, 4) as number;
     }
     set client_from(value: number) {
-        pb_1.Message.setField(this, 8, value);
+        pb_1.Message.setField(this, 4, value);
+    }
+    get cause() {
+        return pb_1.Message.getField(this, 5) as string;
+    }
+    set cause(value: string) {
+        pb_1.Message.setField(this, 5, value);
     }
     get info() {
-        return pb_1.Message.getField(this, 9) as string;
+        return pb_1.Message.getField(this, 6) as string;
     }
     set info(value: string) {
+        pb_1.Message.setField(this, 6, value);
+    }
+    get ident() {
+        return pb_1.Message.getField(this, 7) as number;
+    }
+    set ident(value: number) {
+        pb_1.Message.setField(this, 7, value);
+    }
+    get msg() {
+        return pb_1.Message.getField(this, 8) as Uint8Array;
+    }
+    set msg(value: Uint8Array) {
+        pb_1.Message.setField(this, 8, value);
+    }
+    get group() {
+        return pb_1.Message.getField(this, 9) as string;
+    }
+    set group(value: string) {
         pb_1.Message.setField(this, 9, value);
+    }
+    get nocc() {
+        return pb_1.Message.getField(this, 10) as boolean;
+    }
+    set nocc(value: boolean) {
+        pb_1.Message.setField(this, 10, value);
+    }
+    get acks() {
+        return pb_1.Message.getRepeatedWrapperField(this, CgMessage, 11) as CgMessage[];
+    }
+    set acks(value: CgMessage[]) {
+        pb_1.Message.setRepeatedWrapperField(this, 11, value);
     }
     toObject() {
         var data: {
             type?: CgType;
             client_id?: number;
             success?: boolean;
+            client_from?: number;
+            cause?: string;
+            info?: string;
+            ident?: number;
             msg?: Uint8Array;
             group?: string;
-            cause?: string;
             nocc?: boolean;
-            client_from?: number;
-            info?: string;
+            acks?: ReturnType<typeof CgMessage.prototype.toObject>[];
         } = {};
         if (this.type != null) {
             data.type = this.type;
@@ -125,23 +147,29 @@ export class CgMessage extends pb_1.Message {
         if (this.success != null) {
             data.success = this.success;
         }
+        if (this.client_from != null) {
+            data.client_from = this.client_from;
+        }
+        if (this.cause != null) {
+            data.cause = this.cause;
+        }
+        if (this.info != null) {
+            data.info = this.info;
+        }
+        if (this.ident != null) {
+            data.ident = this.ident;
+        }
         if (this.msg != null) {
             data.msg = this.msg;
         }
         if (this.group != null) {
             data.group = this.group;
         }
-        if (this.cause != null) {
-            data.cause = this.cause;
-        }
         if (this.nocc != null) {
             data.nocc = this.nocc;
         }
-        if (this.client_from != null) {
-            data.client_from = this.client_from;
-        }
-        if (this.info != null) {
-            data.info = this.info;
+        if (this.acks != null) {
+            data.acks = this.acks.map((item: CgMessage) => item.toObject());
         }
         return data;
     }
@@ -153,18 +181,22 @@ export class CgMessage extends pb_1.Message {
             writer.writeInt32(2, this.client_id);
         if (this.success !== undefined)
             writer.writeBool(3, this.success);
-        if (this.msg !== undefined)
-            writer.writeBytes(4, this.msg);
-        if (typeof this.group === "string" && this.group.length)
-            writer.writeString(5, this.group);
-        if (typeof this.cause === "string" && this.cause.length)
-            writer.writeString(6, this.cause);
-        if (this.nocc !== undefined)
-            writer.writeBool(7, this.nocc);
         if (this.client_from !== undefined)
-            writer.writeInt32(8, this.client_from);
+            writer.writeInt32(4, this.client_from);
+        if (typeof this.cause === "string" && this.cause.length)
+            writer.writeString(5, this.cause);
         if (typeof this.info === "string" && this.info.length)
-            writer.writeString(9, this.info);
+            writer.writeString(6, this.info);
+        if (this.ident !== undefined)
+            writer.writeInt32(7, this.ident);
+        if (this.msg !== undefined)
+            writer.writeBytes(8, this.msg);
+        if (typeof this.group === "string" && this.group.length)
+            writer.writeString(9, this.group);
+        if (this.nocc !== undefined)
+            writer.writeBool(10, this.nocc);
+        if (this.acks !== undefined)
+            writer.writeRepeatedMessage(11, this.acks, (item: CgMessage) => item.serialize(writer));
         if (!w)
             return writer.getResultBuffer();
     }
@@ -184,22 +216,28 @@ export class CgMessage extends pb_1.Message {
                     message.success = reader.readBool();
                     break;
                 case 4:
-                    message.msg = reader.readBytes();
-                    break;
-                case 5:
-                    message.group = reader.readString();
-                    break;
-                case 6:
-                    message.cause = reader.readString();
-                    break;
-                case 7:
-                    message.nocc = reader.readBool();
-                    break;
-                case 8:
                     message.client_from = reader.readInt32();
                     break;
-                case 9:
+                case 5:
+                    message.cause = reader.readString();
+                    break;
+                case 6:
                     message.info = reader.readString();
+                    break;
+                case 7:
+                    message.ident = reader.readInt32();
+                    break;
+                case 8:
+                    message.msg = reader.readBytes();
+                    break;
+                case 9:
+                    message.group = reader.readString();
+                    break;
+                case 10:
+                    message.nocc = reader.readBool();
+                    break;
+                case 11:
+                    reader.readMessage(message.acks, () => pb_1.Message.addToRepeatedWrapperField(message, 11, CgMessage.deserialize(reader), CgMessage));
                     break;
                 default: reader.skipField();
             }

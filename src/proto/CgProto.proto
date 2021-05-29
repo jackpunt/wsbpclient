@@ -4,9 +4,9 @@ syntax="proto3";
  * msgsToAck = [CgType.send, CgType.join, CgType.leave] 
  */
 enum CgType {
-  none = 0;
+  none = 0;   // message with no defined meaning.
   ack = 1;    // success: true/flase, client_id: Ref->CgServer send Ack/Nak to specified client (esp: join provide ident)
-  send = 2;   // if supplied: [DM] send only to client_id (typically: 0 for ref), else: send_to_group
+  send = 2;   // if client_id supplied: [DM] send only to client_id (typically: 0 for ref), else: send_to_group
   join = 3;   // req {client_id?, cause?=passcode }; ack {client_id: new-id, cause?:passcode, group?: group_name }
   leave = 4;  // group, client_id, cause are optional [use client_id, group from socket]
 }
@@ -15,10 +15,12 @@ message CgMessage {
   CgType type = 1;       // indicates which fields are populated:
   int32  client_id = 2;  // {leave:client-leaving, send:ack?: to-client/group}; join responds with ack(client_id)
   bool   success = 3;    // ack: true/false
-  bytes  msg = 4;        // send: nested pbMessage<INNER>
-  string group = 5;      // leave, join: "group-name"
-  string cause = 6;      // leave: "resign" | "robot"; ack: cause of !success; join: "client name"
-  bool   nocc  = 7;      // set true to NOT get copy of CgType.send
-  int32  client_from = 8;// client_id of message originator (set in server)
-  string info = 9;       // non-specific info for traceing & debugging
+  int32  client_from = 4;// client_id of message originator (set in server)
+  string cause = 5;      // leave: "resign" | "robot"; ack: cause of !success; join: "client name"
+  string info = 6;       // non-specific info for tracing & debugging
+  int32  ident = 7;      // non-specific ident for tracing & debugging
+  bytes  msg = 8;        // send: nested pbMessage<INNER> (also in Ack!)
+  string group = 9;      // leave, join: "group-name"
+  bool   nocc  = 10;      // set true to NOT get copy of CgType.send
+  repeated CgMessage acks = 11; // Acks in response to send->group [TBD]
 }

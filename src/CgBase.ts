@@ -5,19 +5,62 @@ import { CgMessage, CgType } from "./CgProto";
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {
   interface CgMessage {
-    expectsAck(): boolean 
+    /** @return true for: none, send, join, leave */
+    expectsAck(): boolean
+    /** extract and stringify fields of CgMessage | CgMessageOpts */
+    outObject(): CgMessageOpts
+    msgStr: string
+    /** 
+     * Peek at inner msg without deserializing it.  
+     * this.msg defined for send OR ack(send)  
+     * send[type+length] OR Ack[2+length]  
+     */
+    msgPeek: string
+    /** @return CgType as a string: CgType[type] */
     cgType: string
   }
 }
 /** [none, send, join, leave] expectsAck */
-CgMessage.prototype.expectsAck = function() {
+CgMessage.prototype.expectsAck = function(): boolean {
   return [CgType.none, CgType.send, CgType.join, CgType.leave].includes(this.type)
+}
+//    
+
+/** a readable view into a CgMessage */
+CgMessage.prototype.outObject = function(): CgMessageOpts {
+  let thss: CgMessage = this
+  let { cgType } = thss
+  let msgObj: CgMessageOpts = { cgType }
+  if (thss.client_id !== undefined) msgObj.client_id = thss.client_id
+  if (thss.success !== undefined) msgObj.success = thss.success
+  if (thss.client_from !== undefined) msgObj.client_from = thss.client_from
+  if (thss.cause !== undefined) msgObj.cause = thss.cause 
+  if (thss.info !== undefined) msgObj.info = thss.info
+  if (thss.ident !== undefined) msgObj.ident = thss.ident
+  if (thss.group !== undefined) msgObj.group = thss.group
+  if (thss.nocc !== undefined) msgObj.nocc = thss.nocc
+  if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
+  return msgObj
 }
 // Augment CgType with accessor that returns CgType as a string.
 Object.defineProperty(CgMessage.prototype, 'cgType', {
   get: function () {
     let type = this.type
     return (type !== CgType.ack) ? CgType[this.type] : this.success? 'Ack' : 'Nak'
+  }
+})
+Object.defineProperty(CgMessage.prototype, 'msgPeek', {
+  get: function() {
+    return (this.msg !== undefined) ? `${this.cgType}[${this.msg[1]}+${this.msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
+  }
+})
+Object.defineProperty(CgMessage.prototype, 'msgStr', {
+  get: function() {
+    let thss: CgMessage = this
+    if (thss.msg === undefined) return undefined
+    let chars = [], bytes = (thss.msg as Uint8Array);
+    for( let i = 2; i<thss.msg.length; i++) chars.push(String.fromCharCode(bytes[i])) 
+    return `${thss.cgType}[${thss.msg[1]}+${thss.msg.length}${":".concat(...chars)}]`
   }
 })
 
@@ -106,29 +149,39 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     super.onclose(ev) // send to upstream.onclose(ev)
   }
   // opts?: Exclude<CgMessageOpts, "cause" | "type">
+  /** extract useful Opts from Ack/Nak (or any CgMessage), reduce AckMessage to CgMessageOpts. */
+  ackOpts(opts: CgMessageOpts): CgMessageOpts {
+    if (opts instanceof CgMessage) {
+      let { client_id, success, client_from, info, ident } = opts;
+      return { client_id, success, client_from, info, ident }
+    }
+    return opts
+  }
   /**
    * this.sendToSocket(new Ack(success: true), ...opts)
    * @param cause string
-   * @param opts optional CgMessageOpts
+   * @param opts optional CgMessageOpts | CgMessage
    * @return AckPromise (ackPromise.value is undefined)
    */
   sendAck(cause: string, opts?: CgMessageOpts): AckPromise {
-    return this.sendToSocket(new CgMessage({ success: true, ...opts, cause, type: CgType.ack }))
+    let ackOpts = this.ackOpts(opts)
+    return this.sendToSocket(new CgMessage({ success: true, ...ackOpts, cause, type: CgType.ack }))
   }
   /**
    * this.sendToSocket(new Ack(success: false), ...opts)
    * @param cause 
-   * @param opts 
+   * @param opts CgMessageOpts | CgMessage
    * @returns 
    */
   sendNak(cause: string, opts?: CgMessageOpts) {
-    return this.sendToSocket(new CgMessage({ success: false, ...opts, cause, type: CgType.ack }))
+    let ackOpts = this.ackOpts(opts)
+    return this.sendToSocket(new CgMessage({ success: false, ...ackOpts, cause, type: CgType.ack }))
   }
 
   /** debugging utility */
-  innerMessageString(m: CgMessage) {
-    // assert: msg defined ONLY for m.cgType=='send'; m.msg[1] is the INNER type
-    return m && ((m.msg !== undefined) ? `${m.cgType}[${m.msg[1]}+${m.msg.length}]` : `${m.cgType}(${m.cause || m.success})`)
+  innerMessageString(m: CgMessage): string {
+    // assert: msg defined ONLY for m.cgType=='send' && 'ack'; m.msg[1] is the INNER type
+    return m && (m.msgStr || `${m.cgType}(${m.cause || m.success})`)
   }
 
   /** 
@@ -257,6 +310,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
           let { cgType, success, cause, client_id} = message
           console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", {cgType, success, cause})
           // console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.innerMessageString(this.promise_of_ack.message))
+          break
         } else if (message.success) {
           this.eval_ack(message, this.ack_message)
         } else {
@@ -265,25 +319,15 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
         this.promise_of_ack.fulfill(message)
         break
       }
-      case CgType.join: {
-        this.eval_join(message)
-        break
-      }
-      case CgType.leave: {
-        this.eval_leave(message)
-        break
-      }
-      case CgType.send: {
-        this.eval_send(message)
-        break
-      }
-      case CgType.none: {
-        this.eval_none(message)
-      }
+      case CgType.join: { this.eval_join(message); break }
+      case CgType.leave: { this.eval_leave(message); break }
+      case CgType.send: { this.eval_send(message); break }
+      case CgType.none: { this.eval_none(message); break }
       default: {
         console.log(stime(this, ".parseEval:"), "message has no CgType: ", message)
       }
     }
+    return
   }
   /**
    * Action to take after leaving group.
@@ -295,18 +339,14 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     this.closeStream(CLOSE_CODE.NormalCLosure, cause) // presumably ref will have an onclose to kill itself
   }
   /**
-   * process positive Ack from join, leave, send.
-   * Resolve the outstanding send Promise\<CgMessage> 
+   * Pro-forma: process positive Ack from join, leave, send.
    */
   eval_ack(message: CgMessage, req: CgMessage): void {
-    this.promise_of_ack.fulfill(message); // maybe verify ack# ?
   }
   /**
-   * process Nak from send. (join & leave do not fail?)
-   * if override to process join/leave: include super.eval_nak() 
+   * Pro-forma: process Nak from send. (join & leave do not fail?)
    */
   eval_nak(message: CgMessage, req: CgMessage) {
-    this.promise_of_ack.fulfill(message); // maybe verify ack#
   }
   /** informed that a client wants to join; check client_id & passcode. */
   eval_join(message: CgMessage): void {
@@ -317,7 +357,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** informed that [other] client has departed */
   eval_leave(message: CgMessage): void {
-    console.log(stime(this, ".eval_leave:"), this.innerMessageString(message), message.toArray())
+    console.log(stime(this, ".eval_leave:"), this.innerMessageString(message), message.outObject())
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // booted from group! (or i'm the ref[0] and everyone else has gone)
