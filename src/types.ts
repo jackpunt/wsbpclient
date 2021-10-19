@@ -1,4 +1,4 @@
-import moment = require('moment');
+import * as moment from 'moment';
 import type * as jspb from 'google-protobuf';
 export { EzPromise } from '@thegraid/ezpromise';
 
@@ -28,12 +28,14 @@ export type AWebSocket = WebSocket
 export function className (obj: { constructor: { name: any; }; }): string { 
   return (obj === undefined) ? 'undefined' : (!!obj && obj.constructor) ? obj.constructor.name : 'no_class'
 }
-export const fmt = "YYYY-MM-DD kk:mm:ss.SSS"
+
+/** timestamp & className for console logs. */
 export function stime (obj?: { constructor: { name: string; }; }, f?: string) { 
   let name = obj ? (" "+className(obj)) : ""
   if (!!f) name = name + f
-  return moment().format(fmt) + name
+  return moment().format(stime.fmt) + name
 }
+stime.fmt = "MM-DD kk:mm:ss.SSS"
 
 /**
  * While predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
