@@ -7,7 +7,7 @@
     "lib"
   ],
   "scripts": {
-    "patch-reader": "replace -s 'Uint8Array ? new pb_1.BinaryReader(bytes) : bytes' 'pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes)' --  src/*Proto.ts",
+    "patch-reader": "replace -s 'addToRepeatedField' 'addToRepeatedField' --  src/*Proto.ts",
     "patch": "npm run patch-reader",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
     "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles",
