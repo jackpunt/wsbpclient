@@ -7,15 +7,15 @@
     "lib"
   ],
   "scripts": {
-    "patch-reader": "replace -s 'addToRepeatedField' 'addToRepeatedField' --  src/*Proto.ts",
-    "patch": "npm run patch-reader",
+    "make-patch": "cp src/CgProto.ts src/CgProto-patched.ts; npm run protots; (cd src; diff -patch CgProto.ts CgProto-patched.ts > proto/CgProto.patch); npm run patch-proto",
+    "patch-proto": "patch src/CgProto.ts < src/proto/CgProto.patch",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
     "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles",
     "test": "jest --runInBand --force-exit --verbose",
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc --esModuleInterop",
     "clean": "rm -f dist/out-tsc/*",
-    "build": "npm run clean; npm run protots; npm run patch; npm run tsc; date"
+    "build": "npm run clean; npm run protots; npm run patch-proto; npm run tsc; date"
   },
   "repository": {
     "type": "git",
