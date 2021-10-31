@@ -1,7 +1,7 @@
 # wsbpclient
 The Client-Group protocol (CgProto) has commands to Join, Leave, Send & Ack/Nak.
 
-The semantics are managed by [wspbserver](https://github.com/jackpunt/wspbserver)
+The semantics are managed by [wspbserver](https://github.com/jackpunt/wspbserver); basically a 'chatroom' for **w**eb**s**ocket-**p**roto**b**uf **client** web-apps.
 
 client apps join a group, get a client_id (~ the socket-id) and can then post messages to the group, and recieve copies of messages that other clients send. Messages are 'flow-controlled' by requiring an ACK from each client before proceeding to the next message, so clients stay synch'd.
 
