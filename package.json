@@ -14,7 +14,7 @@
     "test": "jest --runInBand --force-exit --verbose",
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc --esModuleInterop",
-    "clean": "rm -f dist/out-tsc/*",
+    "clean": "rm -f lib/*",
     "build": "npm run clean; npm run protots; npm run patch-proto; npm run tsc; date"
   },
   "repository": {
