@@ -1,5 +1,5 @@
-import moment = require('moment'); // import * as moment from 'moment';
 import type * as jspb from 'google-protobuf';
+export { stime, className } from '@thegraid/common-lib';
 export { EzPromise } from '@thegraid/ezpromise';
 
 export interface pbMessage extends jspb.Message {}
@@ -24,44 +24,6 @@ export type minWebSocket = {
 /** a bytearray that decodes to type T */
 export type DataBuf<T> = Uint8Array
 export type AWebSocket = WebSocket
-
-export function className (obj: { constructor: { name: any; }; }): string { 
-  return (obj === undefined) ? 'undefined' : (!!obj && obj.constructor) ? obj.constructor.name : 'no_class'
-}
-
-/** timestamp & className for console logs. */
-export function stime (obj?: { constructor: { name: string; }; }, f?: string) { 
-  let name = obj ? (" "+className(obj)) : ""
-  if (!!f) name = name + f
-  return moment().format(stime.fmt) + name
-}
-stime.fmt = "MM-DD kk:mm:ss.SSS"
-
-/**
- * While predicate returns truthy, invoke actionP and then recurse (when Promise is fulfilled)
- * @param pred if true then invoke actionP().then(-recurse-)
- * @param actionP preforms some computation and returns a Promise\<T>
- * @param v value: \<T> returned when actionP promise fulfills
- * @param args context args supplied to pred and actionP (v, ...args)
- */
-export function whileP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: T, ...args: any) => Promise<T>, v?: T, ...args: any) {
-  if (pred(v, ...args)) {
-    let p = actionP(v, ...args)
-    p.then((v: T) => whileP(pred, actionP, v, ...args))
-  }
-}
-
-/**
- * Invoke actionP and then (when Promise is fulfilled) if (pred is false) recurse 
- * @param pred if false then (-recurse-)
- * @param actionP preforms some computation and returns a Promise\<T>
- * @param v value: \<T> returned when actionP promise fulfills
- * @param args context args supplied to pred and actionP (v, ...args)
- */
-export function untilP<T>(pred: (v?: T, ...args: any) => boolean, actionP: (v?: T, ...args: any) => Promise<T>, v?: T, ...args: any) {
-  let p = actionP(v, ...args)
-  p.then((v: T) => !pred(v, ...args) && untilP(pred, actionP, v, ...args))
-}
 
 /** standard HTML [Web]Socket events, for client (& server ws.WebSocket) */
 /** what the downstream invokes/sends_to this [upstream] Driver: */
