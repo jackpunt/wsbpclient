@@ -1,4 +1,4 @@
-import * as moment from 'moment';
+import moment = require ('moment');
 
 /** extra name field from constructor/class */
 export function className (obj: { constructor: { name: any; }; }): string { 
@@ -10,8 +10,7 @@ export function stime (obj?: { constructor: { name: string; }; }, f?: string): s
   let stage = !!obj && (obj['stage'] || (!!obj['table'] && obj['table']['stage']))
   let canv = !!stage ? (!!stage.canvas ? " C" : " N") : " -"
   let name = !!obj ? (" "+className(obj)) : ""
-  if (!!f) name = name + f
-  return moment().format(stime.fmt) + canv + name
+  return `${moment().format(stime.fmt)}${canv}${name}${!!f?f:''}`
 }
 stime.fmt = "MM-DD kk:mm:ss.SSS"
 
@@ -20,6 +19,10 @@ export function json(obj: object): string {
   return JSON.stringify(obj).replace(/"/g, '')
 }
 
+/** suitable input to new URL(url) */
+export function buildURL(scheme: string, host: string, domain: string, port: number, path?: string): string {
+  return `${scheme}//${host}.${domain}:${port}/${!!path?path:''}`
+}
 /** drill down through value of inner fields. */
 export function findFieldValue(obj: object, ... names: Array<string|Array<string>> ): any {
   let n = names.shift(), next: any
