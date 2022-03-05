@@ -4,14 +4,24 @@ import { CgClient } from '../src/CgClient'
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
 import { wsWebSocket, ws } from './wsWebSocket'
+import { buildURL } from '@thegraid/common-lib'
+import { TestSocketBase } from './TestSocketBase'
 
-var readyState = (ws: WebSocket): string => {
+function readyState (ws: WebSocket): string {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
 }
 var testTimeout = 3000;
+let showenv = !!process.argv.find((val, ndx, ary) => (val == "Xshowenv"))
+let nomsgs = !!process.argv.find((val, ndx, ary) => (val == "Xnomsgs"))
+let host = process.argv.find((val, ndx, ary) => (ndx>0 && ary[ndx-1] == "Xname")) || 'game7'
+let portStr = process.argv.find((val, ndx, ary) => (ndx>0 && ary[ndx-1] == "Xport")) || '8444'
+let port = Number.parseInt(portStr)
 
-const echourl: string = "wss://game7.thegraid.com:8443"
-const cgservurl: string = "wss://game7.thegraid.com:8444"
+console.log(stime(), "CgServer.spec ", `args`, { argv: process.argv, host, port, nomsgs });
+showenv && console.log(stime(), "CgServer.spec ", `env`, { argv: process.env })
+
+const echourl = buildURL('wss', host, 'thegraid.com', 8443)   // "wss://game7.thegraid.com:8443"
+const cgservurl = buildURL('wss', host, 'thegraid.com', port) // "wss://game7.thegraid.com:8444"
 const testurl: string = cgservurl;
 
 const echoserver:boolean = (testurl == echourl)
@@ -38,54 +48,6 @@ function testMessage<W>(name: string, thisP: EzPromise<W>, msgGen: () => AckProm
   }, timeout)
   testPromises.unshift(nextP)
   return nextP
-}
-
-/**
- * A WebSocketBase that uses wsWebSocket for a WebSocket.
- * 
- * Suitable for jest/node.js while testing without a browser WebSocket.
- */
-class TestSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
-  // for jest/node: make a wsWebSocket(url), send messages upstream
-  url: string
-
-  connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<AWebSocket>, closeP?: EzPromise<CloseInfo>) {
-    if (typeof (ws) === 'string') {
-      let url: string = this.url = ws;
-      ws = new wsWebSocket(url); // TODO: handle failure of URL or connection
-    }
-    super.connectWebSocket(ws)
-
-    this.ws.addEventListener('error', (ev: Event) => {
-      console.log(stime(this, " ws error:"), ev)
-      closeP.fulfill(close_fail)
-    })
-
-    this.ws.addEventListener('open', () => {
-      console.log(stime(this, " ws open:"), "   openP.fulfill(ws)")
-      openP.fulfill(this.ws)
-    })
-
-    this.ws.addEventListener('close', (ev: CloseEvent) => {
-      console.log(stime(this, " ws close:"), {readyState: readyState(this.ws), reason: ev.reason})
-      closeP.fulfill(normalClose(ev.reason))
-    })
-  }
-  /** return this.on('message', handle, {once: true}) */
-  listenFor(type: CgType, handle: (msg: CgMessage)=>void = (msg)=>{}): EventListener {
-    let listener = (ev: Event) => {
-      let data = (ev as MessageEvent).data as DataBuf<CgMessage>
-      let cgm = CgMessage.deserialize(data)
-      let outObj = cgm.outObject()
-      console.log(stime(this, `.listenFor(${CgType[type]})`), outObj)
-      if (cgm.type === type) {
-        wsbase.removeEventListener('message', listener)
-        handle(cgm)
-      }
-    }
-    this.addEventListener('message', listener)
-    return listener
-  }
 }
 
 class TestCgClient<O extends CgMessage> extends CgClient<O> {
@@ -152,6 +114,7 @@ var closeP0 = new EzPromise<CloseInfo>()
 
 var cgClient0 = new TestCgClientR<never>()
 var openP0 = new EzPromise<AWebSocket>()
+var group_name = "test_group"
 
 test("client0 Open", () => {
   let openP = openP0
@@ -178,6 +141,9 @@ var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
 var openP = new EzPromise<AWebSocket>()
 openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
 
+var okToClose = new EzPromise<string>() // replaces pMsgsSent
+var close_timeout = testTimeout - 500
+
 test("WebSocketBase.construct & connectws", () => {
   return openP0.then((ack) => {
     expect(wsbase).toBeInstanceOf(WebSocketBase)
@@ -203,9 +169,6 @@ test("CgClient.connectDnStream", () => {
   })
 })
 
-var okToClose = new EzPromise<string>() // replaces pMsgsSent
-var close_timeout = testTimeout - 500
-
 test("WebSocket connected & OPEN", () => {
   return openP.then((ws) => {
     expect(ws).toBeInstanceOf(wsWebSocket)
@@ -222,7 +185,7 @@ test("WebSocket connected & OPEN", () => {
   })
 })
 
-var group_name = "test_group"
+if (!nomsgs) {
 
 testMessage("CgClient.preJoinFail", openP,
   () => cgclient.send_none(group_name, 0, "preJoinFail"),
@@ -391,3 +354,4 @@ describe("Closing", () => {
     })
   }, testTimeout-100)
 })
+}

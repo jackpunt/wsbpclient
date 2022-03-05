@@ -1,5 +1,5 @@
 import type * as jspb from 'google-protobuf';
-export { stime, className } from './functions'; // not @thegraid/common-lib because createjs
+export { stime, className } from '@thegraid/common-lib'; // not @thegraid/common-lib because createjs
 export { EzPromise } from '@thegraid/ezpromise';
 
 export interface pbMessage extends jspb.Message {}
@@ -15,7 +15,13 @@ export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "C
 // OPEN = 1
 // CLOSING = 2
 // CLOSED = 3
-
+export type CloseInfo = { code: number, reason: string }
+export function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalCLosure, reason: reason}}
+export const close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "normal_closure" }
+export const close_fail: CloseInfo = { code: CLOSE_CODE.Empty, reason: "failed"}
+export function readyState (ws: WebSocket): string {
+  return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
+}
 export type minWebSocket = {
   send: (data: any) => void,
   close: (code?: number, data?: string) => void,

@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.json",
+  "files": [
+    "CgServer.spec.ts",
+    "CgMessage.spec.ts",
+    "TestSocketBase.ts",
+    "testCnx.ts",
+    "wsWebSocket.ts"
+  ],
+  "include": [
+    "test/*.ts"
+  ],
+  "compilerOptions": {
+    //"composite": true,
+    "sourceMap": false,
+    "outDir": "./dist",
+    "rootDirs": [".", "../test2", "../src"]
+  }
+}
