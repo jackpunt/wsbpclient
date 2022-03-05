@@ -7,7 +7,7 @@
     "lib"
   ],
   "scripts": {
-    "pub": "npm run build; npm version patch; npm publish --access public",
+    "pub": "npm run build; npm version ${1:-patch}; npm publish --access public",
     "make-patch": "cp src/CgProto.ts src/proto/CgProto-patched.ts; npm run protots; (cd src; diff -patch CgProto.ts proto/CgProto-patched.ts > proto/CgProto.patch); npm run patch-proto",
     "patch-proto": "patch src/CgProto.ts < src/proto/CgProto.patch",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
