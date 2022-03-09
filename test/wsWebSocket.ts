@@ -46,15 +46,17 @@ class wsWebSocket implements WebSocket {
   dispatchEvent(event: Event): boolean {
     return this.wss.emit(event.type)
   }
+  static socketsOpened = 0 // for testing/debug because jest says there's an open socket.
+  static socketsClosed = 0
   wss: ws$WebSocket
   constructor(url: string) {
     this.wss = new ws$WebSocket(url)
     this.wss.binaryType = 'arraybuffer';
-    // Dubious event casting, but at least you get a signal
-    this.wss.onopen = (ev: ws$WebSocket.OpenEvent) => { this.onopen(ev as any)}
-    this.wss.onclose = (ev: ws$WebSocket.CloseEvent) => { this.onclose(ev as any)}
+    this.wss.onopen = (ev: ws$WebSocket.OpenEvent) => { wsWebSocket.socketsOpened++; this.onopen(ev as any)}
+    this.wss.onclose = (ev: ws$WebSocket.CloseEvent) => { wsWebSocket.socketsClosed++; this.onclose(ev as any)}
     this.wss.onerror = (ev: ws$WebSocket.ErrorEvent) => { this.onerror(ev as any)}
     this.wss.onmessage = (ev: ws$WebSocket.MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
+    // Dubious event casting above, but at least you get a signal
     // SocketServerDriver overrides: this.wss.onmessage(ev) => this.wsmessage(ev.data)
   }
 }

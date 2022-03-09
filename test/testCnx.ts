@@ -1,6 +1,7 @@
 import { buildURL, stime } from "@thegraid/common-lib"
 import { AWebSocket, CloseInfo, close_fail, close_normal, EzPromise, pbMessage, readyState } from "../src"
-import { TestSocketBase } from './TestSocketBase'
+import { wsWebSocketBase } from './wsWebSocketBase'
+import { wsWebSocket } from "./wsWebSocket"
 
 let host = process.argv.find((val, ndx, ary) => (ndx>0 && ary[ndx-1] == "Xname")) || 'game7'
 let portStr = process.argv.find((val, ndx, ary) => (ndx>0 && ary[ndx-1] == "Xport")) || '8444'
@@ -11,9 +12,9 @@ const cgservurl = buildURL('wss', host, 'thegraid.com', port) // "wss://game7.th
 const testurl: string = cgservurl;
 
 const echoserver:boolean = (testurl == echourl)
-console.log(`test-ws:`, testurl)
-var wsbase = new TestSocketBase<pbMessage, pbMessage>()
-var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
+console.log(`testCnx:`, testurl)
+var wsbase = new wsWebSocketBase<pbMessage, pbMessage>()
+var pwsbase = new EzPromise<wsWebSocketBase<pbMessage, pbMessage>>()
 
 var openP = new EzPromise<AWebSocket>()
 openP.then((ws) => {
@@ -29,6 +30,8 @@ openP.then((ws) => {
 openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
 var closeP = new EzPromise<CloseInfo>()
 closeP.then((cinfo) => {
+  let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
+  console.log(stime(), `test done: socket count=`, { opened, closed, pid: process.pid })
   console.log(stime(), "client0 CLOSED:", cinfo, readyState(wsbase.ws))
   setTimeout(() => { console.log(stime(), "client0 END OF TEST!") }, 10)
 })

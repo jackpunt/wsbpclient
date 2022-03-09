@@ -3,7 +3,7 @@
   "files": [
     "CgServer.spec.ts",
     "CgMessage.spec.ts",
-    "TestSocketBase.ts",
+    "wsWebSocketBase.ts",
     "testCnx.ts",
     "wsWebSocket.ts"
   ],

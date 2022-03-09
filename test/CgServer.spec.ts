@@ -1,11 +1,11 @@
 import { WebSocketBase } from '../src/BaseDriver'
 import { DataBuf, stime, EzPromise, pbMessage, CLOSE_CODE, AWebSocket} from '../src/types'
-import { CgClient } from '../src/CgClient'
+import type { CgClient } from '../src/CgClient'
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
 import { wsWebSocket, ws } from './wsWebSocket'
 import { buildURL } from '@thegraid/common-lib'
-import { TestSocketBase } from './TestSocketBase'
+import { TestCgClient, TestCgClientR, wsCgWebSocketBase, wsWebSocketBase } from './wsWebSocketBase'
 
 function readyState (ws: WebSocket): string {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
@@ -31,7 +31,8 @@ function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.Normal
 var close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "test done" }
 var close_fail: CloseInfo = { code: CLOSE_CODE.Empty, reason: "failed"}
 
-var testPromises: EzPromise<any>[] = [];
+const testPromises: EzPromise<any>[] = [];
+/** function to track that sent msg recv's expected response. */
 function testMessage<W>(name: string, thisP: EzPromise<W>, msgGen: () => AckPromise,
   expectMsg: (ack: CgMessage) => void, 
   expectRej?: (reason: any) => void,
@@ -50,21 +51,7 @@ function testMessage<W>(name: string, thisP: EzPromise<W>, msgGen: () => AckProm
   return nextP
 }
 
-class TestCgClient<O extends CgMessage> extends CgClient<O> {
-  eval_send(message: CgMessage) {
-    let inner_msg = CgMessage.deserialize(message.msg)
-    console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.outObject())
-    this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
-  }
-
-  /** when send_leave has been Ack'd, typically: closeStream */
-  on_leave(cause: string) {
-    //override CgBase so it does not auto-close the stream
-    console.log(stime(this, `.onLeave [${this.client_id}]`), cause )
-    if (this.client_id !== 0) return
-    super.on_leave(cause)
-  }
-}
+/** helper class for function testMessage() */
 class TestMsgAcked {
   name: string;
   message: CgMessage
@@ -84,46 +71,34 @@ class TestMsgAcked {
     wsbase.listenFor(CgType.ack, handler)
   }
 }
-/** A TestSocketBase<CgMessage, CgMessage>, which is a [mock-] WebSockectBase<I,O> */
-class TestSocketBaseR<I extends CgMessage, O extends CgMessage> extends TestSocketBase<I,O> {}
-/** CgClient in role of Referee: sends Ack/Nak */
-class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
-  eval_send(message: CgMessage) {
-    console.log(stime(this, `.eval_send[${message.client_from} -> ${this.client_id}]`), this.innerMessageString(message))
-    let inner_msg = CgMessage.deserialize(message.msg) // inner CgMessage, type==CgType.none
-    if (inner_msg.type === CgType.none && inner_msg.cause == "NakMe") {
-      this.sendNak(inner_msg.cause, { client_id: message.client_from })
-      return
-    }
-    if (inner_msg.type === CgType.none && inner_msg.cause == "MsgInAck") {
-      console.log(stime(this, `.eval_send[${this.client_id}]`), "Augment MsgInAck")
-      inner_msg.info = inner_msg.cause   // augment inner 'none' message: info: "MsgInAck"
-      let aug_msg = inner_msg.serializeBinary()  // prep 'none' message to insert into original 'send'
-      message.msg = aug_msg
-      message.info = "send(aug_none)"
-      let aug_send = message.serializeBinary() // augment & re-serialize original CgMessage({type: CgType.send}, ...)
-      let pAck = this.sendAck(inner_msg.cause, { client_id: message.client_from, msg: aug_send })
-      console.log(stime(this, `.eval_send returning Ack`), pAck.message.outObject())
-      return
-    }
-    this.sendAck("send-approved", {client_id: message.client_from})
-  }
-}
+
 
 const openP0 = new EzPromise<AWebSocket>()
 const closeP0 = new EzPromise<CloseInfo>()
+/** Promise filled({code, reason}) when client wsbase.ws is closed. */
+const closeP: EzPromise<CloseInfo> = new EzPromise<CloseInfo>()
+closeP.then((reason) => { console.log(stime(), "closeP-closed:", reason) })
+closeP.catch((reason) => { console.log(stime(), "closeP-catch:", reason) })
 
+/** a CgClient as Referee. */
 const cgClient0 = new TestCgClientR<never>()
+/** create a CgClient, stack it on the WebSocketDriver stream */
+const cgclient: CgClient<pbMessage> = new TestCgClient();
+/** a wsBaseDriver */
+const wsbase: wsWebSocketBase<pbMessage, pbMessage>= new wsWebSocketBase<pbMessage, pbMessage>() // create a WebSocket
+const okToClose = new EzPromise<string>() // 
 
 const group_name = "test_group"
 const refDone = new EzPromise<boolean>()
-let refwsbase: TestSocketBaseR<CgMessage, CgMessage> = new TestSocketBaseR() // using wsWebSocket
+let refwsbase: wsCgWebSocketBase = new wsCgWebSocketBase() // using wsWebSocket
+const openP = new EzPromise<AWebSocket>()
 
+describe("Opening", () => {
 test("client0 (referee) Open", () => {
   console.log(stime(), "try connect referee to url =", testurl)
   refwsbase.connectWebSocket(testurl, openP0, closeP0)
   closeP0.then((info) => {
-    console.log(stime(), `client0 (referee) closed [closeP Promise fulfill]`, info)
+    console.log(stime(), `client0 (referee) closed [closeP0 Promise fulfill]`, info)
   })
   return openP0.then((ws) => {
     console.log(stime(), "client0 (referee wsbase) OPEN", (ws === refwsbase.ws))
@@ -138,24 +113,17 @@ test("client0 (referee) Open", () => {
   })
 })
 
-let wsbase: TestSocketBase<pbMessage, pbMessage>
-const pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
+const pwsbase = new EzPromise<wsWebSocketBase<pbMessage, pbMessage>>()
 
-const openP = new EzPromise<AWebSocket>()
 openP.catch((rej) => { console.log(stime(), "openP.catch", rej) })
 
-/** Promise filled({code, reason}) when client wsbase.ws is closed. */
-const closeP: EzPromise<CloseInfo> = new EzPromise<CloseInfo>()
-closeP.then((reason) => { console.log(stime(), "closeP-closed:", reason) })
-closeP.catch((reason) => { console.log(stime(), "closeP-catch:", reason) })
 
-const okToClose = new EzPromise<string>() // replaces pMsgsSent
 const close_timeout = testTimeout - 500
 
 test("wsbase.construct & connect", () => {
   // wait for previous test to complete
   return refDone.then((ack) => {
-    wsbase = new TestSocketBase<pbMessage, pbMessage>() // create a WebSocket
+    wsbase 
     expect(wsbase).toBeInstanceOf(WebSocketBase)
     console.log(stime(), "try connect client to url =", testurl)
     wsbase.connectWebSocket(testurl, openP, closeP) // start the connection sequence --> openP
@@ -166,8 +134,6 @@ test("wsbase.construct & connect", () => {
   })
 })
 
-/** create a CgClient, stack it on the WebSocketDriver stream */
-const cgclient: CgClient<pbMessage> = new TestCgClient();
 const pCgClient = new EzPromise<CgClient<pbMessage>>();  // fulfill when stacked
 test("wsbase.push CgClient", () => {
   return pwsbase.then((wsbase) => {
@@ -194,9 +160,9 @@ test("wsbase.ws connected & OPEN", () => {
     //expect(rej).toBe("timeout") // never reached !! 
   })
 })
-
+})
 if (!nomsgs) {
-
+describe( "Messages", () =>{
 testMessage("CgClient.preJoinFail", openP,
   () => cgclient.send_none(group_name, 0, "preJoinFail"), // send preJoin 'none' message: doomd to fail
   (ack) => {
@@ -306,6 +272,7 @@ testMessage("CgClient.preJoinFail", openP,
     () => !!echoserver && cgclient.sendAck(cause, { client_id, group: group_name })
   )
 }
+})
 } else {
   okToClose.fulfill("no_msgs")
 }
