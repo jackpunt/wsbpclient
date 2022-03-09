@@ -84,8 +84,9 @@ class TestMsgAcked {
     wsbase.listenFor(CgType.ack, handler)
   }
 }
+/** A TestSocketBase<CgMessage, CgMessage>, which is a [mock-] WebSockectBase<I,O> */
 class TestSocketBaseR<I extends CgMessage, O extends CgMessage> extends TestSocketBase<I,O> {}
-/** client in role of Referee */
+/** CgClient in role of Referee: sends Ack/Nak */
 class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
   eval_send(message: CgMessage) {
     console.log(stime(this, `.eval_send[${message.client_from} -> ${this.client_id}]`), this.innerMessageString(message))
@@ -109,59 +110,68 @@ class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
   }
 }
 
-var client0p = new EzPromise<CgMessage>()
-var closeP0 = new EzPromise<CloseInfo>()
+const openP0 = new EzPromise<AWebSocket>()
+const closeP0 = new EzPromise<CloseInfo>()
 
-var cgClient0 = new TestCgClientR<never>()
-var openP0 = new EzPromise<AWebSocket>()
-var group_name = "test_group"
+const cgClient0 = new TestCgClientR<never>()
 
-test("client0 Open", () => {
-  let openP = openP0
-  let closeP = closeP0
-  let wsbase = new TestSocketBaseR() // using wsWebSocket
-  wsbase.connectWebSocket(testurl, openP, closeP)
-  return openP.then((ws) => {
-    console.log(stime(), "client0 OPEN")
-    cgClient0.connectDnStream(wsbase)
+const group_name = "test_group"
+const refDone = new EzPromise<boolean>()
+let refwsbase: TestSocketBaseR<CgMessage, CgMessage> = new TestSocketBaseR() // using wsWebSocket
+
+test("client0 (referee) Open", () => {
+  console.log(stime(), "try connect referee to url =", testurl)
+  refwsbase.connectWebSocket(testurl, openP0, closeP0)
+  closeP0.then((info) => {
+    console.log(stime(), `client0 (referee) closed [closeP Promise fulfill]`, info)
+  })
+  return openP0.then((ws) => {
+    console.log(stime(), "client0 (referee wsbase) OPEN", (ws === refwsbase.ws))
+    cgClient0.connectDnStream(refwsbase) // push TestCgClientR Driver
     cgClient0.send_join(group_name, 0, "referee").then((ack: CgMessage) => { 
-      console.log(stime(), "client0 JOINED: ", ack.success)
+      console.log(stime(), "client0 (referee) JOINED: ", ack.success)
       expect(ack.success).toBeTruthy()
       expect(cgClient0.client_id).toBe(0)
-      client0p.fulfill(ack)
-      console.log(stime(), "client0 client0p.resolved=", client0p.resolved)
+      refDone.fulfill(true)
+      console.log(stime(), "client0 client0p.resolved=", refDone.resolved)
     })
   })
 })
 
-/** create a WebSocketBase */
-var wsbase = new TestSocketBase<pbMessage, pbMessage>()
-var pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
+let wsbase: TestSocketBase<pbMessage, pbMessage>
+const pwsbase = new EzPromise<TestSocketBase<pbMessage, pbMessage>>()
 
-var openP = new EzPromise<AWebSocket>()
-openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
+const openP = new EzPromise<AWebSocket>()
+openP.catch((rej) => { console.log(stime(), "openP.catch", rej) })
 
-var okToClose = new EzPromise<string>() // replaces pMsgsSent
-var close_timeout = testTimeout - 500
+/** Promise filled({code, reason}) when client wsbase.ws is closed. */
+const closeP: EzPromise<CloseInfo> = new EzPromise<CloseInfo>()
+closeP.then((reason) => { console.log(stime(), "closeP-closed:", reason) })
+closeP.catch((reason) => { console.log(stime(), "closeP-catch:", reason) })
 
-test("WebSocketBase.construct & connectws", () => {
-  return openP0.then((ack) => {
+const okToClose = new EzPromise<string>() // replaces pMsgsSent
+const close_timeout = testTimeout - 500
+
+test("wsbase.construct & connect", () => {
+  // wait for previous test to complete
+  return refDone.then((ack) => {
+    wsbase = new TestSocketBase<pbMessage, pbMessage>() // create a WebSocket
     expect(wsbase).toBeInstanceOf(WebSocketBase)
-    console.log(stime(), "try connect to url =", testurl)
+    console.log(stime(), "try connect client to url =", testurl)
     wsbase.connectWebSocket(testurl, openP, closeP) // start the connection sequence --> openP
     expect(wsbase.ws).toBeInstanceOf(wsWebSocket)   // wsbase.ws exists
     console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.ws))
     pwsbase.fulfill(wsbase)                         // assert we have the components of wsbase & wsbase.ws
-    setTimeout(() => openP.reject("timeout"), 500); // is moot if alaready connected
+    setTimeout(() => openP.reject("timeout"), 500); // is moot if already connected/fulfilled
   })
 })
 
 /** create a CgClient, stack it on the WebSocketDriver stream */
-var cgclient: CgClient<pbMessage> = new TestCgClient();
-var pCgClient = new EzPromise<CgClient<pbMessage>>();  // fulfill when stacked
-test("CgClient.connectDnStream", () => {
+const cgclient: CgClient<pbMessage> = new TestCgClient();
+const pCgClient = new EzPromise<CgClient<pbMessage>>();  // fulfill when stacked
+test("wsbase.push CgClient", () => {
   return pwsbase.then((wsbase) => {
-    console.log(stime(), "try cgclient.connectDnStream")
+    console.log(stime(), "CgClient.connectDnStream try connect CgClient Driver")
     cgclient.connectDnStream(wsbase)
     expect(cgclient.dnstream).toBe(wsbase)
     expect(wsbase.upstream).toBe(cgclient)
@@ -169,7 +179,7 @@ test("CgClient.connectDnStream", () => {
   })
 })
 
-test("WebSocket connected & OPEN", () => {
+test("wsbase.ws connected & OPEN", () => {
   return openP.then((ws) => {
     expect(ws).toBeInstanceOf(wsWebSocket)
     expect(ws.readyState).toBe(ws.OPEN);
@@ -188,7 +198,7 @@ test("WebSocket connected & OPEN", () => {
 if (!nomsgs) {
 
 testMessage("CgClient.preJoinFail", openP,
-  () => cgclient.send_none(group_name, 0, "preJoinFail"),
+  () => cgclient.send_none(group_name, 0, "preJoinFail"), // send preJoin 'none' message: doomd to fail
   (ack) => {
     if (echoserver) {
       console.log(stime(), "echoserver returned", ack)
@@ -200,7 +210,7 @@ testMessage("CgClient.preJoinFail", openP,
       expect(ack.cause).toBe("not a member")
     }
   }, (rej) => {
-    fail()
+    fail(rej)
   }, null, testTimeout - 2000);
 
 { let cause = "ref-approved", expect_id = 1
@@ -282,7 +292,6 @@ testMessage("CgClient.preJoinFail", openP,
       fail()
     }, null, testTimeout - 2000)
 }
-
 { let cause = "test_done", client_id = cgclient.client_id // 1
   testMessage("CgClient.sendLeave & Ack", null,
     () => cgclient.send_leave(group_name, client_id, cause),
@@ -297,29 +306,31 @@ testMessage("CgClient.preJoinFail", openP,
     () => !!echoserver && cgclient.sendAck(cause, { client_id, group: group_name })
   )
 }
+} else {
+  okToClose.fulfill("no_msgs")
+}
 
-
-/** Promise filled({code, reason}) when socket is closed. */
-var closeP: EzPromise<CloseInfo> = new EzPromise<CloseInfo>()
-closeP.catch((reason) => { console.log(stime(), "closeP-catch:", reason) })
 
 describe("Closing", () => {
-  test("BaseDriver.close client", () => {
+  test("wsbase.close client", () => {
     return okToClose.finally(() => {
-      console.log(stime(), okToClose.value, `try closeStream(normal, '${close_normal.reason}')`)
-      try {
+      console.log(stime(), `Because "${okToClose.value}" try closeStream(normal, '${close_normal.reason}')`)
+      if (!!wsbase) try {
         wsbase.closeStream(close_normal.code, close_normal.reason) // wsbase.ws.close(code, reason)
+        console.log(stime(), `closeState=`, wsbase.closeState)
       } catch (err) {
         console.log(stime(), "closeStream error:", err)
         closeP.fulfill(close_fail)
+      } else {
+        closeP.fulfill({code: 0, reason:'no wsbase'})
       }
     })
   })
 
-  test("BaseDriver.client closed", () => {
+  test("wsbase.client closed", () => {
     return closeP.then((info: CloseInfo) => {
       let { code, reason } = info
-      console.log(stime(), "client closed:", info, readyState(wsbase.ws))
+      console.log(stime(), `client closed: closeState=`, wsbase.closeState, info)
       if (code == close_fail.code) {
         expect(reason).toBe(close_fail.reason)
       } else {
@@ -329,29 +340,38 @@ describe("Closing", () => {
     },
       (rej: any) => {
         expect(rej).toBe(close_fail.reason)
+      }).finally(()=>{
+        refwsbase.closeStream(close_normal.code, close_normal.reason)
+        console.log(stime(), `client0 closeStream: closeState=`, refwsbase.closeState)
       })
   }, testTimeout)
 
-  test("BaseDriver.verify closed", () => {
+  test("wsbase.verify closed", () => {
     return closeP.finally(() => {
-      console.log(stime(), "verify closed:", readyState(wsbase.ws))
+      console.log(stime(), `verify closed: closeState=`, wsbase.closeState)
       setTimeout(() => {
         expect(wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
       }, 100)
     })
   })
 
-  test("client0 Close", (done) => {
+  test("client0.verify Close", () => {
     return closeP0.then((cinfo) => {
-      console.log(stime(), "client0 CLOSED:", cinfo, readyState(wsbase.ws))
-      setTimeout(() => {
-        console.log(stime(), "client0 END OF TEST!")
-        setTimeout(() => {
-          expect(wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
-          done()
-        }, 100)
-      }, 10)
+      console.log(stime(), `client0 CLOSED: closeState=`, wsbase.closeState, cinfo)
+      expect(wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
     })
   }, testTimeout-100)
+
+  test("All Closed", () => {
+    return closeP0.finally(() => {
+      let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
+      expect(closed).toEqual(opened)
+      console.log(stime(), `test done: socket count=`, { opened, closed, pid: process.pid })
+    })
+  })
 })
-}
+test("timetolog", () => {
+  return new Promise<void>((fulfill) => {
+    setTimeout(() => { fulfill() }, 500)
+  })
+}) 
