@@ -1,15 +1,8 @@
-import { buildURL, stime } from "@thegraid/common-lib"
+import { buildURL, stime, argVal } from "@thegraid/common-lib"
 import { AWebSocket, CloseInfo, close_fail, close_normal, EzPromise, pbMessage, readyState, WebSocketBase } from "../src"
 import { wsWebSocketBase } from '../src/wsWebSocketBase'
 import { wsWebSocket } from "../src/wsWebSocket"
 
-/** until we get it from common-lib */
-export function argVal(name, defVal, k): string {
-  const envVal = process.env[name] || defVal
-  const argKey = (k == '=') ? `${name}${k}` : `${k}${name}`
-  const argVal = process.argv.find((val, ndx, ary) => (ndx > 0 && ary[ndx - 1] == argKey)) || envVal
-  return argVal
-}
 class TestCgCnx {
   constructor(defHost, defPort) {}
 }

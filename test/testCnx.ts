@@ -1,10 +1,9 @@
-import { buildURL, stime } from "@thegraid/common-lib"
+import { argVal, buildURL, stime } from "@thegraid/common-lib"
 import { wsWebSocketBase } from '../src/wsWebSocketBase'
 import { wsWebSocket } from "../src/wsWebSocket"
 import { EzPromise } from '@thegraid/ezpromise'
 import { pbMessage, CloseInfo, close_fail, close_normal, readyState } from '../src'
 import type { AWebSocket, WebSocketBase } from '../src'
-import { argVal } from "./testCgCnx"
 
 const wsbase = new wsWebSocketBase<pbMessage, pbMessage>()
 

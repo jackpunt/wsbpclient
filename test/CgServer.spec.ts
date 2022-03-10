@@ -3,10 +3,9 @@ import { stime, EzPromise, pbMessage, CLOSE_CODE, AWebSocket} from '../src/types
 import type { CgClient } from '../src/CgClient'
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
-import { buildURL } from '@thegraid/common-lib'
+import { argVal, buildURL } from '@thegraid/common-lib'
 import { TestCgClient, TestCgClientR, wsCgWebSocketBase, wsWebSocketBase } from '../src/wsWebSocketBase'
 import { wsWebSocket } from '../src/wsWebSocket'
-import { argVal } from './testCgCnx'
 
 function readyState (ws: WebSocket): string {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
