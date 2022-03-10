@@ -304,7 +304,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   parseEval(message: CgMessage, wrapper?: pbMessage, ...args: any): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
-    console.log(stime(this, `.parseEval[${this.client_port}] <-`), message.cgType, this.innerMessageString(message))
+    console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.cgType}:`), this.innerMessageString(message))
     switch (message.type) {
       case CgType.ack: {
         if (this.ack_resolved) {

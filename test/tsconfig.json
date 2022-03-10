@@ -3,9 +3,8 @@
   "files": [
     "CgServer.spec.ts",
     "CgMessage.spec.ts",
-    "wsWebSocketBase.ts",
     "testCnx.ts",
-    "wsWebSocket.ts"
+    "testCgCnx.ts"
   ],
   "include": [
     "test/*.ts"

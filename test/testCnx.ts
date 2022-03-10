@@ -1,24 +1,23 @@
 import { buildURL, stime } from "@thegraid/common-lib"
-import { AWebSocket, CloseInfo, close_fail, close_normal, EzPromise, pbMessage, readyState } from "../src"
-import { wsWebSocketBase } from './wsWebSocketBase'
-import { wsWebSocket } from "./wsWebSocket"
+import { wsWebSocketBase } from '../src/wsWebSocketBase'
+import { wsWebSocket } from "../src/wsWebSocket"
+import { EzPromise } from '@thegraid/ezpromise'
+import { pbMessage, CloseInfo, close_fail, close_normal, readyState } from '../src'
+import type { AWebSocket, WebSocketBase } from '../src'
+import { argVal } from "./testCgCnx"
 
-let host = process.argv.find((val, ndx, ary) => (ndx>0 && ary[ndx-1] == "Xname")) || 'game7'
-let portStr = process.argv.find((val, ndx, ary) => (ndx>0 && ary[ndx-1] == "Xport")) || '8444'
-let port = Number.parseInt(portStr)
+const wsbase = new wsWebSocketBase<pbMessage, pbMessage>()
 
-const echourl = buildURL('wss', host, 'thegraid.com', 8443)   // "wss://game7.thegraid.com:8443"
-const cgservurl = buildURL('wss', host, 'thegraid.com', port) // "wss://game7.thegraid.com:8444"
-const testurl: string = cgservurl;
+const openP = new EzPromise<AWebSocket>()
+openP.then(opened, rejected).catch(catchRej)
+function rejected(reason: any) { console.log(stime(), `rejected: ${reason}`)}
+function catchRej(reason: any) { console.log(stime(), `catchRej: ${reason}`)}
+function opened(ws: WebSocket) {
+  console.log(stime(), `opened:`, ws.url)
+  closeStream(wsbase)
+}
 
-const echoserver:boolean = (testurl == echourl)
-console.log(`testCnx:`, testurl)
-var wsbase = new wsWebSocketBase<pbMessage, pbMessage>()
-var pwsbase = new EzPromise<wsWebSocketBase<pbMessage, pbMessage>>()
-
-var openP = new EzPromise<AWebSocket>()
-openP.then((ws) => {
-  console.log(stime(), "client0 OPEN")
+function closeStream(wsbase: WebSocketBase<pbMessage, pbMessage>) {
   console.log(stime(), `try closeStream(normal, '${close_normal.reason}')`)
   try {
     wsbase.closeStream(close_normal.code, close_normal.reason) // wsbase.ws.close(code, reason)
@@ -26,15 +25,22 @@ openP.then((ws) => {
     console.log(stime(), "closeStream error:", err)
     closeP.fulfill(close_fail)
   }
-})
-openP.catch((rej) => { console.log(stime(), "cnxP.catch", rej) })
-var closeP = new EzPromise<CloseInfo>()
-closeP.then((cinfo) => {
+}
+
+const closeP = new EzPromise<CloseInfo>()
+closeP.then(() => closed)
+function closed(cinfo: any) {
   let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
   console.log(stime(), `test done: socket count=`, { opened, closed, pid: process.pid })
-  console.log(stime(), "client0 CLOSED:", cinfo, readyState(wsbase.ws))
-  setTimeout(() => { console.log(stime(), "client0 END OF TEST!") }, 10)
-})
+  console.log(stime(), "client CLOSED:", cinfo, readyState(wsbase.ws))
+  setTimeout(() => { console.log(stime(), "client END OF TEST!") }, 10)
+}
+let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
+let portStr = argVal('port', '8444', 'X'), port = Number.parseInt(portStr)
 
-let tws = wsbase.connectWebSocket(testurl, openP, closeP)
-
+const echourl = buildURL('wss', host, 'thegraid.com', 8443)   // "wss://game7.thegraid.com:8443"
+const servurl = buildURL('wss', host, 'thegraid.com', port)   // "wss://game7.thegraid.com:8444"
+const testurl: string = servurl;
+const echoserver: boolean = (testurl == echourl) // if echoserver, don't expect server to ACK msgs
+console.log(`testCnx:`, testurl)
+let wsDriver = wsbase.connectWebSocket(testurl, openP, closeP)

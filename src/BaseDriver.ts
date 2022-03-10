@@ -33,8 +33,8 @@ class ServerSideEventTarget implements EventTarget {
 }
 /**
  * Stackable drivers to move pbMessages up/down from/to websocket.
- * I (INNER) is closer to the websocket, aka downstream
- * O (OUTER) is closer to the application, aka upstream
+ * I (INNER) is closer to the websocket, aka downstream; bottom of stack
+ * O (OUTER) is closer to the application, aka upstream; top of of stack
  * 
  */
 export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget {
@@ -49,9 +49,14 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     }
   }
   newEventTarget(): EventTarget {
-    try {
-      return new EventTarget()  // works in browser
-    } catch {
+    // Sadly, jest-27 seems to be using jsdom or something... with window & EventTarget defined!
+    if (typeof window === 'undefined') {
+      try {
+        return new EventTarget()  // works in browser
+      } catch {
+        return new ServerSideEventTarget() // fallback to cheap impl on server
+      }
+    } else {
       return new ServerSideEventTarget() // fallback to cheap impl on server
     }
   }
@@ -95,7 +100,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    console.log(stime(this, ".onclose:"), "upstream.onclose(ev), upstream=", className(this.upstream))
+    console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}` )
     if (!!this.upstream) this.upstream.onclose(ev)
   };
   /** invoke this.wsmessage(ev.data) */
@@ -152,7 +157,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   ws: AWebSocket;
 
   /** 
-   * stack the given drivers on top of this WebSocketBase 
+   * Stack the given drivers on top of this WebSocketBase 
    * 
    * TODO: is there a Generic Type for the chain of drivers (COD)?
    * 
@@ -168,19 +173,19 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   }
 
   /**
-   * @param ws_or_url 
+   * Connect to Downstream 'Driver'; BaseDriver connects directly to AWebSocket [or URL->new WebSocket()].
+   * @param ws_or_url existing AWebSocket or string -> new WebSocket() [on Browser]
    * @returns this WebSocketBase
    * @override to accept AWebSocket | string
    */
   connectDnStream(ws_or_url: AWebSocket | string | UpstreamDrivable<O>): this {
-    this.connectWebSocket(ws_or_url as AWebSocket | string )
-    return this
+    return this.connectWebSocket(ws_or_url as AWebSocket | string )
   }
-  /** replace the usual connectDnStream(WebSocketDriver) 
+  /** Implements connectDnStream(WebSocketDriver) -> connect to WebSocket|url.
    * @param ws the WebSocket (or url) connection to be handled. (or null)
    * Can also be a SocketSender (ie another CnxHandler)
    */
-  connectWebSocket(ws: AWebSocket | string) {
+  connectWebSocket(ws: AWebSocket | string): this {
     if (typeof (ws) === 'string') {
       let url = ws;
       ws = new WebSocket(url); // TODO: handle failure of URL or connection
@@ -196,6 +201,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       ws.onmessage = (ev) => this.onmessage(ev);
     }
     this.ws = ws;  // may be null
+    return this
   }
 
   /**
@@ -215,9 +221,10 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
     this.ws.send(data)
   }
 
-  /** invoke WebSocket.close() */
+  /** invoke WebSocket.close(code, reason) */
   closeStream(code: CLOSE_CODE, reason: string): void {
-    this.ws.close(code, reason)
+    if (!this.ws) return        // close always legal, should not fail.
+    this.ws.close(code, reason) // invoke libdom interface to WebSocket; AWebSocket -> wsWebSocket implements
   }
 
 }

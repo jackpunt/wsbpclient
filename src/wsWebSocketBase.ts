@@ -1,6 +1,8 @@
-import { wsWebSocket, ws } from './wsWebSocket'
-import { stime, EzPromise, pbMessage, AWebSocket, WebSocketBase, CloseInfo, close_fail, normalClose, readyState, CgType, CgMessage, DataBuf } from '../src'
-import { CgClient } from '../src/CgClient'
+import type { EzPromise } from '@thegraid/ezpromise'
+import { stime } from '@thegraid/common-lib'
+import { pbMessage, CloseInfo, close_fail, normalClose, readyState } from '.'
+import { CgClient, CgType, CgMessage, DataBuf, AWebSocket, WebSocketBase } from '.'
+import { wsWebSocket } from './wsWebSocket'
 
 /**
  * A WebSocketBase Driver that uses a [nodejs] wsWebSocket.
@@ -10,11 +12,13 @@ import { CgClient } from '../src/CgClient'
 export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
   url: string
+  /** this.ws socket state: { readyState: string, closed: number, closeEmitted: number } */
   get closeState() {
+    if (!this.ws) return {}
     let state = readyState(this.ws), socket = this.ws['wss']['_socket']
     if (!socket) return { readyState: state }
-    let rs = socket && socket['_readableState']
-    return { readyState: readyState(this.ws), closed: rs['closed'], closeEmitted: rs['closeEmitted']}
+    let rs = socket['_readableState']
+    return { readyState: state, closed: rs['closed'], closeEmitted: rs['closeEmitted']}
   }
   /** 
    * extend connectWebSocket to fulfill the given EzPromises when webSocket is OPEN or CLOSE. 
@@ -27,18 +31,18 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
     }
     super.connectWebSocket(ws)
 
-    this.ws.addEventListener('error', (ev: Event) => {
-      console.log(stime(this, " ws error:"), ev)
+    this.ws.addEventListener('error', (ev: ErrorEvent) => {
+      console.log(stime(this, " ws_error:"), ev.message)
       !!closeP && closeP.fulfill(close_fail)
     })
 
     this.ws.addEventListener('open', (ev) => {
-      console.log(stime(this, " ws open:"), !!openP ? "   openP.fulfill(ws)" : "    no Promise")
+      console.log(stime(this, " ws_open:"), !!openP ? "   openP.fulfill(ws)" : "    no Promise")
       !!openP && openP.fulfill(this.ws)
     })
 
     this.ws.addEventListener('close', (ev: CloseEvent) => {
-      console.log(stime(this, " ws close:"), { readyState: readyState(this.ws), reason: ev.reason, closeP : !!closeP })
+      console.log(stime(this, " ws_close:"), { readyState: readyState(this.ws), reason: ev.reason, closeP : !!closeP })
       !!closeP && closeP.fulfill(normalClose(ev.reason))
     })
     return this
@@ -76,7 +80,7 @@ export class TestCgClient<O extends CgMessage> extends CgClient<O> {
     //override CgBase so it does not auto-close the stream
     console.log(stime(this, `.onLeave [${this.client_id}]`), cause )
     if (this.client_id !== 0) return
-    super.on_leave(cause)
+    super.on_leave(cause) // if last client leaving: close refere
   }
 }
 /** TestCgClient extended for role of Referee: sends Ack/Nak */
