@@ -204,9 +204,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck() && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
-      this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), this.innerMessageString(message), "resolved=", this.ack_resolved)
+      this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), resolved: this.ack_resolved })
       this.ack_promise.then((ack) => {
-        this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), this.innerMessageString(ack))
+        this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
       })
       return ackPromise  // with message un-sent

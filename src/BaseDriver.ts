@@ -94,15 +94,18 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   onopen(ev: Event): void {
     this.log && this.log && console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
     if (!!this.upstream) this.upstream.onopen(ev)
+    this.dispatchEvent(ev)
   };
   /** invoke upstream.onerror(ev) */
   onerror(ev: Event): void {
     if (!!this.upstream) this.upstream.onerror(ev)
+    this.dispatchEvent(ev)
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
     this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}` )
     if (!!this.upstream) this.upstream.onclose(ev)
+    this.dispatchEvent(ev)
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
