@@ -14,6 +14,7 @@ function readyState (ws: WebSocket): string {
 var testTimeout = 3000;
 let showenv = !!process.argv.find((val, ndx, ary) => (val == "Xshowenv"))
 let nomsgs = !!process.argv.find((val, ndx, ary) => (val == "Xnomsgs"))
+let nomsglog = !!process.argv.find((val, ndx, ary) => (val == "Xnomsglog"))
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
 let portStr = argVal('port', '8444', 'X'), port = Number.parseInt(portStr)
@@ -57,7 +58,7 @@ class TestMsgAcked {
   message: CgMessage
   pAck: AckPromise
   pAckp: EzPromise<AckPromise>
-  /** msgGen creates pAck, run test.expect() when that ack/nak is fulfilled by CgBase.parseEval(ack/nak). */
+  /** msgGen creates pAck, run test.expect() when that AckPromise(ack/nak) is fulfilled by CgBase.parseEval(ack/nak). */
   constructor(name: string, pAck: AckPromise, pAckp: EzPromise<AckPromise>, 
     expectMsg: (ack: CgMessage) => void, expectRej?: (reason: any) => void) {
     this.name = name;
@@ -67,7 +68,7 @@ class TestMsgAcked {
 
     this.pAck.then((ack) => { expectMsg(ack) }, (reason: any) => { !!expectRej && expectRej(reason) })
     this.pAck.finally(() => { pAckp.fulfill(pAck) }) 
-    let handler = (msg: CgMessage) => { console.log(stime(this, `.listenForAck: FOUND FOR '${this.name}'`), msg.cgType) }
+    let handler = (msg: CgMessage) => { nomsglog || console.log(stime(this, `.listenForAck: '${this.name}' ==> ${msg.cgType}`)) }
     wsbase.listenFor(CgType.ack, handler)
   }
 }
@@ -133,9 +134,9 @@ describe("Opening", () => {
       console.log(stime(), "try connect client to url =", testurl)
       wsbase.connectWebSocket(testurl, openP, closeP) // start the connection sequence --> openP
       expect(wsbase.ws).toBeInstanceOf(wsWebSocket)   // wsbase.ws exists
-      console.log(stime(), "pwsbase.fulfill(wsbase)", readyState(wsbase.ws))
-      //pwsbase.fulfill(wsbase)                         // assert we have the components of wsbase & wsbase.ws
-      setTimeout(() => openP.reject("timeout"), 500); // is moot if already connected/fulfilled
+      let timeout = 500
+      console.log(stime(), `readyState(wsbase.ws) = ${readyState(wsbase.ws)} timeout in ${timeout}ms`)
+      setTimeout(() => openP.reject("timeout"), timeout); // is moot if already connected/fulfilled
     })
   })
 
@@ -158,22 +159,25 @@ describe("Opening", () => {
 
 if (!nomsgs) {
   describe("Messages", () => {
+    test('run message tests', () => {
+      return openP.then(() => {console.log(stime(), `run message tests: console.log = ${!nomsglog}`)})
+    })
+    
     testMessage("CgClient.preJoinFail", openP,
       () => cgclient.send_none(group_name, 0, "preJoinFail"), // send preJoin 'none' message: doomd to fail
       (ack) => {
         if (echoserver) {
-          console.log(stime(), "echoserver returned", ack)
+          nomsglog || console.log(stime(), "echoserver returned", ack)
           expect(ack.success).toBe(true)
           expect(ack.cause).toBe(group_name)
         } else {
-          console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
+          nomsglog || console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
           expect(ack.success).toBe(false)
           expect(ack.cause).toBe("not a member")
         }
       }, (rej) => {
         fail(rej)
       }, null, testTimeout - 2000);
-
     {
       let cause = "ref-approved", expect_id = 1
       testMessage("CgClient.sendJoin & Ack", null,
@@ -189,6 +193,19 @@ if (!nomsgs) {
         })
     }
 
+    testMessage("Referee.kill.client", null,
+      () => {
+        console.log(stime(), `referee kick [${cgclient.client_id}]`)
+        return cgClient0.send_leave(group_name, cgclient.client_id, 'test kick')
+      },
+      (ack) => {
+        expect(ack.type).toEqual(CgType.ack)
+        expect(ack.group).toEqual(group_name)
+      },
+      (reason) => {
+        console.log(stime(), `referee kick [${cgclient.client_id}] failed: reason = ${reason}`)
+      })
+
     {
       let client_id = cgclient.client_id, cause = "send_done"; // 1
       testMessage("CgClient.sendSend & Ack", null,
@@ -198,10 +215,10 @@ if (!nomsgs) {
           ackp.then((ack) => { expect(ack).toBeUndefined() })
 
           let message = new CgMessage({ type: CgType.none, cause: "test send", client_id: 0 })
-          console.log(stime(), `CgClient.sendSend[${client_id}]:`, cgclient.innerMessageString(message))
+          nomsglog || console.log(stime(), `CgClient.sendSend[${client_id}]:`, cgclient.innerMessageString(message))
           return cgclient.send_send(message, { nocc: true })
         }, (ack) => {
-          console.log(stime(), `CgClient.sendSend returned ack:`, cgclient.innerMessageString(ack))
+          nomsglog || console.log(stime(), `CgClient.sendSend returned ack:`, cgclient.innerMessageString(ack))
           expect(ack.type).toEqual(CgType.ack)
           expect(ack.cause).toEqual(cause)
           expect(ack.client_id).toBeUndefined()
@@ -217,13 +234,13 @@ if (!nomsgs) {
         () => {
           let client_id = 0
           let message = new CgMessage({ type: CgType.none, cause, client_id })
-          console.log(stime(), `CgClient.sendSendMsg[${client_id}]:`, cgclient.innerMessageString(message))
+          nomsglog || console.log(stime(), `CgClient.sendSendMsg[${client_id}]:`, cgclient.innerMessageString(message))
           return cgclient.send_send(message, { nocc: false, client_id: undefined })
         }, (ack) => {
-          console.log(stime(), "CgClient.sendSendMsg returned ack:", cgclient.innerMessageString(ack))
+          nomsglog || console.log(stime(), "CgClient.sendSendMsg returned ack:", cgclient.innerMessageString(ack))
           expect(ack.success).toBe(true)
           expect(ack.cause).toBe('send_done')  // all 'send' are Ack by server with 'send_done' QQQQ: should we fwd Ack from Referee?
-          console.log(stime(this), "CgClient.sendSendMsg returned message", inner_sent.outObject())
+          nomsglog || console.log(stime(this), "CgClient.sendSendMsg returned message", inner_sent.outObject())
           expect(inner_sent.type).toEqual(CgType.none)
           expect(inner_sent.cause).toEqual(cause)
           expect(inner_sent.info).toEqual(cause)
@@ -233,7 +250,7 @@ if (!nomsgs) {
           echoserver && cgclient.sendAck('send_done', { client_id })
           wsbase.listenFor(CgType.send, (msg) => {
             inner_sent = CgMessage.deserialize(msg.msg)
-            console.log(stime(), `RECEIVED SEND: ${inner_sent.outObject()}`)
+            nomsglog || console.log(stime(), `RECEIVED SEND:`, inner_sent.outObject())
           })
         }, testTimeout - 2000)
     }
@@ -243,15 +260,15 @@ if (!nomsgs) {
         () => {
           let client_id = 0
           let message = new CgMessage({ type: CgType.none, cause, client_id })
-          console.log(stime(), `CgClient.sendNoneNak[${client_id}]:`, cgclient.innerMessageString(message))
+          nomsglog || console.log(stime(), `CgClient.sendNoneNak[${client_id}]:`, cgclient.innerMessageString(message))
           return cgclient.send_send(message, { nocc: true })
         }, (ack) => {
           if (echoserver) {
-            console.log(stime(), "echoserver returned", ack)
+            nomsglog || console.log(stime(), "echoserver returned", ack)
             expect(ack.success).toBe(true)
             expect(ack.cause).toBe(cause)
           } else {
-            console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
+            nomsglog || console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
             expect(ack.success).toBe(false)
             expect(ack.cause).toBe(cause)
           }
@@ -268,7 +285,7 @@ if (!nomsgs) {
           expect(msg.group).toEqual(group_name)
           expect(msg.cause).toEqual(cause)
           expect(msg.client_id).toEqual(cgclient.client_id)
-          console.log(stime(), `CgClient.sendLeave Ack'd: okToClose.fulfill('${cause}')`)
+          nomsglog || console.log(stime(), `CgClient.sendLeave Ack'd: okToClose.fulfill('${cause}')`)
           okToClose.fulfill(cause)               // signal end of test
         },
         () => !!echoserver && cgclient.sendAck(cause, { client_id, group: group_name })

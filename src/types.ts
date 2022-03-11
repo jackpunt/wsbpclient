@@ -9,7 +9,13 @@ export interface pbMessage extends jspb.Message {}
  * 
  * https://docs.microsoft.com/en-us/dotnet/api/system.net.websockets.websocketclosestatus 
  */
-export enum CLOSE_CODE { NormalCLosure = 1000, EndpointUnavailable = 1001, Empty = 1005 }
+export enum CLOSE_CODE { 
+  NormalCLosure = 1000, 
+  EndpointUnavailable = 1001, 
+  ProtocolError =	1002,
+  Empty = 1005, 
+  PolicyViolation	= 1008,
+}
 export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED">
 // CONNECTING = 0
 // OPEN = 1

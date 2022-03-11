@@ -40,6 +40,7 @@ class ServerSideEventTarget implements EventTarget {
 export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget {
   dnstream: UpstreamDrivable<I>;      // next driver downstream
   upstream: WebSocketEventHandler<O>; // next driver upstream
+  log: boolean = false
 
   newMessageEvent(data: DataBuf<I>): MessageEvent {
     try {
@@ -91,7 +92,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
+    this.log && this.log && console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
     if (!!this.upstream) this.upstream.onopen(ev)
   };
   /** invoke upstream.onerror(ev) */
@@ -100,7 +101,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}` )
+    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}` )
     if (!!this.upstream) this.upstream.onclose(ev)
   };
   /** invoke this.wsmessage(ev.data) */
