@@ -49,16 +49,12 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
       return {type: 'message', data: data} as MessageEvent
     }
   }
+  isBrowser: boolean = (typeof window !== 'undefined')
   newEventTarget(): EventTarget {
-    // Sadly, jest-27 seems to be using jsdom or something... with window & EventTarget defined!
-    if (typeof window === 'undefined') {
-      try {
-        return new EventTarget()  // works in browser
-      } catch {
-        return new ServerSideEventTarget() // fallback to cheap impl on server
-      }
+    if (this.isBrowser) {
+      return new EventTarget()           // works in browser
     } else {
-      return new ServerSideEventTarget() // fallback to cheap impl on server
+      return new ServerSideEventTarget() // my impl on nodejs
     }
   }
   et: EventTarget = this.newEventTarget()
@@ -161,7 +157,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   ws: AWebSocket;
 
   /** 
-   * Stack the given drivers on top of this WebSocketBase 
+   * Stack the given drivers on top of this WebSocketBase, then connectWebSocket(ws|url) 
    * 
    * TODO: is there a Generic Type for the chain of drivers (COD)?
    * 
