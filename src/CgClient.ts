@@ -1,9 +1,10 @@
+import { WebSocketBase } from './BaseDriver';
 import { CgBase } from './CgBase'
+import type { CgMessage } from './CgProto';
 import type { pbMessage } from './types';
 
-
 /** 
- * A web client using CgProto (client-group.proto)
+ * A WebSocketDriver for CgProto (client-group.proto)
  * 
  * Example usage:
  * 

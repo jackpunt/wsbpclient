@@ -5,6 +5,8 @@ import { CgClient, CgType, CgMessage, DataBuf, AWebSocket, WebSocketBase } from 
 import { wsWebSocket } from './wsWebSocket'
 import type ws$WebSocket = require("ws");
 
+// https://www.npmjs.com/package/mock-socket (presumagly is *just* a mock, does not connect to anything)
+// OR: jsdom (which has ws/WebSocket, but also all of window, DOM, browser stuff)
 /**
  * A WebSocketBase Driver that uses a [nodejs] wsWebSocket.
  * 
@@ -68,9 +70,6 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
     return listener
   }
 }
-
-/** A [mock-] wsWebSocketBase<CgMessage, CgMessage> Driver */
-export class wsCgWebSocketBase extends wsWebSocketBase<CgMessage,CgMessage> {}
 
 /** CgClient to Log and Ack msgs recv'd; log .onLeave() */
 export class TestCgClient<O extends CgMessage> extends CgClient<O> {

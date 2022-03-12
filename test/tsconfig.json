@@ -13,6 +13,6 @@
     //"composite": true,
     "sourceMap": false,
     "outDir": "./dist",
-    "rootDirs": [".", "../test2", "../src"]
+    "rootDirs": [".", "../src"]
   }
 }

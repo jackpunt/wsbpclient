@@ -4,8 +4,9 @@ import type { CgClient } from '../src/CgClient'
 import { CgMessage, CgType } from '../src/CgProto'
 import type { AckPromise } from '../src/CgBase'
 import { argVal, buildURL } from '@thegraid/common-lib'
-import { TestCgClient, TestCgClientR, wsCgWebSocketBase, wsWebSocketBase } from '../src/wsWebSocketBase'
+import { TestCgClient, TestCgClientR, wsWebSocketBase } from '../src/wsWebSocketBase'
 import { wsWebSocket } from '../src/wsWebSocket'
+import { listTCPsockets, makeCgClient } from './testFuncs'
 
 function readyState (ws: WebSocket): string {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
@@ -27,6 +28,7 @@ const echoserver: boolean = (testurl == echourl) // if echoserver, expect no Ack
 
 console.log(stime(), "CgServer.spec ", `args`, { argv: process.argv, host, port, nomsgs });
 showenv && console.log(stime(), "CgServer.spec ", `env`, { argv: process.env })
+
 
 function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalCLosure, reason: reason}}
 const close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "test done" }
@@ -76,15 +78,14 @@ class TestMsgAcked {
   }
 }
 
-function makeClient(cgclient: CgClient<CgMessage>, url: string | AWebSocket, listeners: { open?: EventListenerOrEventListenerObject, close?: EventListenerOrEventListenerObject, error?: EventListenerOrEventListenerObject, message?: EventListenerOrEventListenerObject } = {}) {
-  let wsbase = new wsCgWebSocketBase()
-  cgclient.connectDnStream(wsbase)
+function makeTestCgClient(ignore, url: string | AWebSocket, listeners: { open?: EventListenerOrEventListenerObject, close?: EventListenerOrEventListenerObject, error?: EventListenerOrEventListenerObject, message?: EventListenerOrEventListenerObject } = {}) {
+  let wsbase = new wsWebSocketBase()
+  let cgclient = wsbase.connectStream(url, TestCgClient)[1] as CgClient<CgMessage>;
   listeners.open && cgclient.addEventListener('open', listeners.open)
   listeners.close && cgclient.addEventListener('close', listeners.close)
   listeners.error && cgclient.addEventListener('error', listeners.error)
   listeners.message && cgclient.addEventListener('message', listeners.message)
-  wsbase.connectWebSocket(url, openP, closeP)
-  return wsbase
+  return { wsbase, cgclient }
 }
 
 const openP0 = new EzPromise<AWebSocket>(); // referee: refwsbase
@@ -106,7 +107,7 @@ const okToClose = new EzPromise<string>() //
 
 const group_name = "test_group"
 const refDone = new EzPromise<boolean>()
-let refwsbase: wsCgWebSocketBase = new wsCgWebSocketBase() // using wsWebSocket
+let refwsbase = new wsWebSocketBase() // using wsWebSocket
 const openP = new EzPromise<AWebSocket>()
 
 describe("Opening", () => {
@@ -118,6 +119,7 @@ describe("Opening", () => {
     })
     return openP0.then((ws) => {
       console.log(stime(), "client0 (referee wsbase) OPEN", (ws === refwsbase.ws))
+      listTCPsockets()
       cgClient0.connectDnStream(refwsbase) // push TestCgClientR Driver
       cgClient0.send_join(group_name, 0, "referee").then((ack: CgMessage) => {
         console.log(stime(), "client0 (referee) JOINED: ", ack.success)
@@ -132,16 +134,20 @@ describe("Opening", () => {
         closeP0.fulfill({ code: 0, reason: `failed to open: ${reason}`})
     })
   })
+  // cgclient2 -- do nothing, closeStream() when refwsbase.closedStream()
   openP.finally(() => {
-    let cgclient = new TestCgClient()
-    let openl = () => {
-      console.log(stime(), `cgclient2 open -- send_join`)
-      cgclient.send_join(group_name)
-    }, closel = (ev: {target}) => {
-      console.log(stime(), `cgclient2 close -- closeState: `, wsbase2.closeState)
-    }
-    let wsbase2 = makeClient(cgclient, testurl, { open: openl, close: closel })
-    let wswebSocket = (wsbase2.ws as wsWebSocket)
+    //let cgclient = new TestCgClient()
+    let { wsbase, cgclient } = makeTestCgClient(TestCgClient, testurl, {
+      open: () => {
+        console.log(stime(), `cgclient2 open -- send_join`)
+        cgclient.send_join(group_name)
+      },
+      close: (ev: { target }) => {
+        console.log(stime(), `cgclient2 close -- closeState: `, wsbase.closeState)
+      }
+    })
+
+    let wswebSocket = (wsbase.ws as wsWebSocket)
     wswebSocket.addEventListener('close', (ev: CloseEvent) => {
       console.log(stime(), `cgclient2 wsWebSocket.close -- socketsClosed =`, wsWebSocket.socketsClosed)
     })
@@ -149,7 +155,7 @@ describe("Opening", () => {
     wss.addListener('close',(code, msg) => {
       console.log(stime(), `cgclient2 wss.close -- readyState =`, wss.readyState)
     })
-    console.log(stime(), 'client2 made -- url =', wsbase2.url)
+    console.log(stime(), 'client2 made -- url =', wsbase.url)
     cgclient2 = cgclient
   })
 
@@ -369,6 +375,7 @@ describe("Closing", () => {
         refwsbase.closeStream(close_normal.code, close_normal.reason); // ==> close() ==> cP0.fulfill()
         console.log(stime(), `client0 closeStream: closeState=`, refwsbase.closeState)
         !!cgclient2 && cgclient2.closeStream(close_normal.code, close_normal.reason)
+        listTCPsockets()
       })
   }, testTimeout)
 
@@ -385,6 +392,7 @@ describe("Closing", () => {
     return closeP0.then((cinfo) => {
       console.log(stime(), `client0 CLOSED: closeState=`, wsbase.closeState, cinfo)
       expect(wsbase.ws && wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
+      listTCPsockets()
     })
   }, testTimeout-100)
 
@@ -393,11 +401,14 @@ describe("Closing", () => {
       let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
       expect(closed).toEqual(opened)
       console.log(stime(), `test done: socket count=`, { opened, closed, pid: process.pid })
+      let n = listTCPsockets().length
+      expect(n).toBe(0)
     })
   })
 })
 test("timetolog", () => {
   return new Promise<void>((fulfill) => {
+    expect(true).toBeTruthy()
     setTimeout(() => { fulfill() }, 500)
   })
 }) 
