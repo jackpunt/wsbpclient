@@ -88,7 +88,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    this.log && this.log && console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
+    this.log && console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
     if (!!this.upstream) this.upstream.onopen(ev)
     this.dispatchEvent(ev)
   };
@@ -99,23 +99,17 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}` )
+    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onclose(ev)
     this.dispatchEvent(ev)
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
     //console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
-    this.wsmessage(ev.data)
+    if (!!this.upstream) this.upstream.onmessage(ev)
+    //this.dispatchEvent(ev)  // 'message' listener is reserved for wsmessage(DataBuf)
+    this.wsmessage(ev.data)   // extract DataBuf<I> & use wsmessage()
   };
-  /**
-   * Deliver data to 'message' listeners: {type: 'message', data: data}.
-   * @param data
-   */
-  dispatchMessageEvent(data: DataBuf<I>) {
-    let event = this.newMessageEvent(data)
-    this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
-  }
   /**
    * process message from downstream:
    * this.dispatchMessageEvent(data)
@@ -126,6 +120,14 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
     this.dispatchMessageEvent(data)
   };
+  /**
+   * Deliver data to 'message' listeners: {type: 'message', data: data}.
+   * @param data
+   */
+  dispatchMessageEvent(data: DataBuf<I>) {
+    let event = this.newMessageEvent(data)
+    this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
+  }
 
   deserialize(bytes: Uint8Array): I {
     throw new Error("Method not implemented.");
@@ -195,6 +197,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       // this [essentially/actually] adds our methods as EventListener('type')
     }
     if (!!ws ) { // (ws instanceof WebSocket) hangs!
+      // pull events from downstream [WebSocket] and push up to this Driver
       ws.onopen = (ev) => this.onopen(ev);
       ws.onerror = (err) => this.onerror(err);
       ws.onclose = (ev) => this.onclose(ev);
@@ -210,8 +213,8 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * @param wrapper [unlikely to come from dnstream to this WebSocketBase]
    * @override BaseDriver
    */
-  wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    this.dispatchMessageEvent(data)
+  override wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
+    super.wsmessage(data)
     //console.log(stime(this, ".wsmesssage"), `upstream.wsmessage(${data.byteLength}), upstream=`, className(this.upstream))
     if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
   };

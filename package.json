@@ -12,7 +12,7 @@
     "patch-proto": "patch src/CgProto.ts < src/proto/CgProto.patch",
     "protots": "protoc -I src/proto --ts_out=src src/proto/*.proto",
     "testCnx": "node test/dist/test/testCnx.js",
-    "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles spec.ts",
+    "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles CgServer.spec.ts",
     "test": "jest --runInBand  --verbose spec.ts",
     "note": "jest/babel produce unusable .js: class constructor cannot be invoked without new",
     "makejest": "rm -rf test/dist/*; tsc -p test",
@@ -40,7 +40,7 @@
   },
   "homepage": "https://github.com/jackpunt/wsbpclient#readme",
   "dependencies": {
-    "@thegraid/common-lib": "^1.3.3",
+    "@thegraid/common-lib": "^1.3.6",
     "@thegraid/ezpromise": "^1.0.10",
     "google-protobuf": "*",
     "moment": "^2.29.1",

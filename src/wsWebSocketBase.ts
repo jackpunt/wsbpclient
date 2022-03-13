@@ -25,7 +25,8 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
     let sockWstate = socket['_writableState']
     let recvWstate = (recvr && recvr['_writeableState']) || { closeEmitted: 'unknown', errorEmited: 'unknown'}
     let sendWState = (sendr && sendr['_writeableState']) || { closeEmitted: 'unknown', errorEmited: 'unknown'}
-    return { readyState: state, closedR: sockRstate['closed'], closeEmittedR: sockRstate['closeEmitted'], closedW: sockWstate['closed'], closeEmittedW: sockWstate['closeEmitted'] }
+    //return { readyState: state, closedR: sockRstate['closed'], closeEmittedR: sockRstate['closeEmitted'], closedW: sockWstate['closed'], closeEmittedW: sockWstate['closeEmitted'] }
+    return { readyState: state }
   }
   /** 
    * extend connectWebSocket to fulfill the given EzPromises when webSocket is OPEN or CLOSE. 

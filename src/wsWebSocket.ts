@@ -4,7 +4,8 @@ export { wsWebSocket, ws$WebSocket as ws }
 
 // But then see: https://stackoverflow.com/questions/52299063/why-im-able-to-access-websocket-native-browser-object-in-node-jest
 /** 
- * a WebSocket implemented as a wrapper around a ws.WebSocket.
+ * A WebSocket implemented as a wrapper around a ws.WebSocket.
+ * Delegate everything to wss: ws.WebSocket
  * 
  * Suitable for mocking a browser WebSocket when running on Node.js (jest'ing)
  */
@@ -23,8 +24,13 @@ class wsWebSocket implements WebSocket {
   onerror: (ev: Event) => void
   onopen: (ev: Event) => void
   onmessage: (ev: MessageEvent<Uint8Array>) => void
+  // the above are set by BaseDriver.connectWebSocket! 
+  // which forwards them upstream & invokes DispatchEvent(ev)
+  // a *real* ws.WebSocket.js appears to make the methods unalterable: 
+  // set onclose(listener) {}; get onclose() {return undefined}
+  // below we set the wss.onopen(ev) to call this.onpen(ev); which works: because counters++
 
-  // This is the important bit, sending downstream:
+  // This is the important bit, sending 'downstream' to inner-wss:
   close(code?: number, reason?: string): void { this.wss.close(code, reason) };
   send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
     this.wss.send(data)
@@ -44,7 +50,10 @@ class wsWebSocket implements WebSocket {
     this.wss.removeEventListener(type, listener)
   }
   dispatchEvent(event: Event): boolean {
-    return this.wss.emit(event.type)
+    console.log('wsWebSocket.dispatchEvent invoked! event=', event)
+    return this.wss.emit(event.type) // presumably the other event fields are not used TODO: close, error...
+    // AH! in practice we do NOT invoke this.dispatchEvent() method
+    // most signals passed by the onXXXX() => this.wss.onXXX()
   }
   static socketsOpened = 0 // for testing/debug because jest says there's an open socket.
   static socketsClosed = 0

@@ -92,8 +92,8 @@ const openP0 = new EzPromise<AWebSocket>(); // referee: refwsbase
 const closeP0 = new EzPromise<CloseInfo>(); // referee: refwsbase
 /** Promise filled({code, reason}) when client wsbase.ws is closed. */
 const closeP: EzPromise<CloseInfo> = new EzPromise<CloseInfo>()
-closeP.then((reason) => { console.log(stime(), "closeP-wsbase.closed:", reason) })
-closeP.catch((reason) => { console.log(stime(), "closeP-wsbase.catch:", reason) })
+closeP.then((cinfo) => { console.log(stime("closeP-wsbase", ".closed:"), cinfo) })
+closeP.catch((reason) => { console.log(stime("closeP-wsbase", ".catch:"), reason) })
 
 /** a CgClient as Referee. */
 const cgClient0 = new TestCgClientR<never>()
@@ -119,7 +119,7 @@ describe("Opening", () => {
     })
     return openP0.then((ws) => {
       console.log(stime(), "client0 (referee wsbase) OPEN", (ws === refwsbase.ws))
-      listTCPsockets()
+      false && listTCPsockets()
       cgClient0.connectDnStream(refwsbase) // push TestCgClientR Driver
       cgClient0.send_join(group_name, 0, "referee").then((ack: CgMessage) => {
         console.log(stime(), "client0 (referee) JOINED: ", ack.success)
@@ -129,7 +129,7 @@ describe("Opening", () => {
         console.log(stime(), "client0 refDone.resolved=", refDone.resolved)
       })
     }, (reason) => {
-        console.log(stime(), `client0 (referee) failed to join:`, reason)
+        console.log(stime(), `client0 (referee) FAILED to open:`, reason)
         refDone.reject(reason)
         closeP0.fulfill({ code: 0, reason: `failed to open: ${reason}`})
     })
@@ -149,11 +149,15 @@ describe("Opening", () => {
 
     let wswebSocket = (wsbase.ws as wsWebSocket)
     wswebSocket.addEventListener('close', (ev: CloseEvent) => {
-      console.log(stime(), `cgclient2 wsWebSocket.close -- socketsClosed =`, wsWebSocket.socketsClosed)
+      console.log(stime(), `cgclient wswebSocket.close -- ev:`, {code: ev.code, reason: ev.reason})
+      let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
+      console.log(stime(), `cgclient2 wsWebSocket.close -- socket count=`, { opened, closed, pid: process.pid })
     })
     let wss = wswebSocket.wss
     wss.addListener('close',(code, msg) => {
       console.log(stime(), `cgclient2 wss.close -- readyState =`, wss.readyState)
+      let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
+      console.log(stime(), `cgclient2 wss.close -- socket count=`, { opened, closed, pid: process.pid })
     })
     console.log(stime(), 'client2 made -- url =', wsbase.url)
     cgclient2 = cgclient
@@ -271,17 +275,18 @@ if (!nomsgs) {
     }
     {
       let client_id = cgclient.client_id, cause = "MsgInAck", inner_sent: CgMessage
+      let here = 'CgClient.sendSendMsg'
       testMessage("CgClient.sendSend MsgInAck", null,
         () => {
           let client_id = 0
           let message = new CgMessage({ type: CgType.none, cause, client_id })
-          nomsglog || console.log(stime(), `CgClient.sendSendMsg[${client_id}]:`, cgclient.innerMessageString(message))
+          nomsglog || console.log(stime(here), `[${client_id}]:`, cgclient.innerMessageString(message))
           return cgclient.send_send(message, { nocc: false, client_id: undefined })
         }, (ack) => {
-          nomsglog || console.log(stime(), "CgClient.sendSendMsg returned ack:", cgclient.innerMessageString(ack))
+          nomsglog || console.log(stime(here), "returned ack:", cgclient.innerMessageString(ack))
           expect(ack.success).toBe(true)
           expect(ack.cause).toBe('send_done')  // all 'send' are Ack by server with 'send_done' QQQQ: should we fwd Ack from Referee?
-          nomsglog || console.log(stime(this), "CgClient.sendSendMsg returned message", inner_sent.outObject())
+          nomsglog || console.log(stime(here), "returned message", inner_sent.outObject())
           expect(inner_sent.type).toEqual(CgType.none)
           expect(inner_sent.cause).toEqual(cause)
           expect(inner_sent.info).toEqual(cause)
@@ -291,25 +296,25 @@ if (!nomsgs) {
           echoserver && cgclient.sendAck('send_done', { client_id })
           wsbase.listenFor(CgType.send, (msg) => {
             inner_sent = CgMessage.deserialize(msg.msg)
-            nomsglog || console.log(stime(), `RECEIVED SEND:`, inner_sent.outObject())
+            nomsglog || console.log(stime(here), `RECEIVED SEND:`, inner_sent.outObject())
           })
         }, testTimeout - 2000)
     }
     {
-      let cause = "NakMe"
+      let cause = "NakMe", here = "CgClient.sendNoneNak"
       testMessage("CgClient.sendNone for Nak", null,
         () => {
           let client_id = 0
           let message = new CgMessage({ type: CgType.none, cause, client_id })
-          nomsglog || console.log(stime(), `CgClient.sendNoneNak[${client_id}]:`, cgclient.innerMessageString(message))
+          nomsglog || console.log(stime(here), `[${client_id}]:`, cgclient.innerMessageString(message))
           return cgclient.send_send(message, { nocc: true })
         }, (ack) => {
           if (echoserver) {
-            nomsglog || console.log(stime(), "echoserver returned", ack)
+            nomsglog || console.log(stime(here), "echoserver returned", ack)
             expect(ack.success).toBe(true)
             expect(ack.cause).toBe(cause)
           } else {
-            nomsglog || console.log(stime(), "cgserver returned", cgclient.innerMessageString(ack))
+            nomsglog || console.log(stime(here), "cgserver returned", cgclient.innerMessageString(ack))
             expect(ack.success).toBe(false)
             expect(ack.cause).toBe(cause)
           }
@@ -334,48 +339,54 @@ if (!nomsgs) {
     }
   })
 } else {
-  setTimeout(() => {
-    okToClose.fulfill("no_msgs")
-  }, 300)
+  let no_msg_time = 300
+  console.log(stime(), `no messages: setTimeout(okToClose.fulfill("no_msgs"), ${no_msg_time})`)
+  setTimeout(() => { okToClose.fulfill("no_msgs") }, no_msg_time)
 }
 
 
 describe("Closing", () => {
   test("wsbase.close client", () => {
+    let here = `wsbase.close`
     return okToClose.finally(() => {
-      console.log(stime(), `Because "${okToClose.value}" try wsbase.closeStream(normal, '${close_normal.reason}')`)
+      console.log(stime(here), `Because "${okToClose.value}" try wsbase.closeStream(normal, '${close_normal.reason}')`)
       expect(wsbase).not.toBeNull()
       if (!!wsbase) try {
         wsbase.closeStream(close_normal.code, close_normal.reason) // wsbase.ws.close(code, reason)
-        console.log(stime(), `wsbase closeState=`, wsbase.closeState)
+        console.log(stime(here), `closeState=`, wsbase.closeState)
       } catch (err) {
-        console.log(stime(), "wsbase closeStream error:", err)
+        console.log(stime(here), "closeStream error:", err)
         closeP.fulfill(close_fail)
       } else {
+        console.log(stime(here), `closeState= 'no wsbase'`)
         closeP.fulfill({code: 0, reason:'no wsbase'})
       }
     })
   })
 
   test("wsbase.client closed", () => {
-    return closeP.then((info: CloseInfo) => {
-      let { code, reason } = info
-      console.log(stime(), `wsbase closed: closeState=`, wsbase.closeState, info)
-      if (code == close_fail.code) {
-        expect(reason).toBe(close_fail.reason)
-      } else {
-        expect(code).toBe(close_normal.code)
-        expect(reason || close_normal.reason).toBe(close_normal.reason)
-      }
-    },
+    let here = "wsbase.closed:"
+    closeP.then(
+      (info: CloseInfo) => {
+        let { code, reason } = info
+        console.log(stime(here), `closeState=`, wsbase.closeState, info)
+        if (code == close_fail.code) {
+          expect(reason).toBe(close_fail.reason)
+        } else {
+          expect(code).toBe(close_normal.code)
+          expect(reason || close_normal.reason).toBe(close_normal.reason)
+        }
+      },
       (rej: any) => {
         expect(rej).toBe(close_fail.reason)
-      }).finally(()=>{
-        //closeP0.fulfill({ code: 0, reason: 'no clients joined'})
-        refwsbase.closeStream(close_normal.code, close_normal.reason); // ==> close() ==> cP0.fulfill()
-        console.log(stime(), `client0 closeStream: closeState=`, refwsbase.closeState)
+      })
+    return closeP.finally(
+      () => {
+        console.log(stime(here), !!cgclient2 ? `cgclient2.closeStream(normal)` : `no cgclient2`)
         !!cgclient2 && cgclient2.closeStream(close_normal.code, close_normal.reason)
-        listTCPsockets()
+        refwsbase.closeStream(close_normal.code, close_normal.reason); // ==> close() ==> cP0.fulfill()
+        console.log(stime(here), `refwsbase.closeState=`, refwsbase.closeState)
+        false && listTCPsockets()
       })
   }, testTimeout)
 
@@ -392,23 +403,28 @@ describe("Closing", () => {
     return closeP0.then((cinfo) => {
       console.log(stime(), `client0 CLOSED: closeState=`, wsbase.closeState, cinfo)
       expect(wsbase.ws && wsbase.ws.readyState).toEqual(wsbase.ws.CLOSED)
-      listTCPsockets()
+      false && listTCPsockets()
     })
   }, testTimeout-100)
 
   test("All Closed", () => {
     return closeP0.finally(() => {
-      let opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
-      expect(closed).toEqual(opened)
-      console.log(stime(), `test done: socket count=`, { opened, closed, pid: process.pid })
-      let n = listTCPsockets().length
+      let n = 0, closed = 0, opened = 0
+      if (false) {
+      n = listTCPsockets().length
+      opened = wsWebSocket.socketsOpened, closed = wsWebSocket.socketsClosed
+      }
+      console.log(stime(`All Closed:`), `socket count=`, { opened, closed, pid: process.pid })
       expect(n).toBe(0)
+      expect(closed).toEqual(opened)
+      setTimeout(() => { waitToLog.fulfill() }, 200)
+      
     })
   })
 })
+let waitToLog = new EzPromise<void>()
 test("timetolog", () => {
-  return new Promise<void>((fulfill) => {
+  return waitToLog.then(() => {
     expect(true).toBeTruthy()
-    setTimeout(() => { fulfill() }, 500)
   })
 }) 

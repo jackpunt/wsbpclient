@@ -129,8 +129,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @param wrapper [unlikely...]
    * @override BaseDriver
    */
-  wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
-    this.dispatchMessageEvent(data)
+  override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
+    super.wsmessage(data)
     let message = CgMessage.deserialize(data)
     this.parseEval(message, wrapper)
   }
