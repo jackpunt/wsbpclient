@@ -63,7 +63,8 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   // (event: CustomEvent)
   dispatchEvent(event: Event): boolean {
-    return this.et.dispatchEvent(event)
+    if (event.target !== undefined) console.log(stime(this, `.dispatchEvent:`), event)
+    return this.et.dispatchEvent(event) // redispatch an already dispatched event!
   }
   removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
     this.et.removeEventListener(type, callback, options)
@@ -88,18 +89,19 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    this.log && console.log(stime(this, ".onopen:"), "upstream.onopen(ev), upstream=", className(this.upstream))
+    this.log && console.log(stime(this, ".onopen:"), `upstream.onopen(ev=${ev}), upstream=${className(this.upstream)}`, ev)
     if (!!this.upstream) this.upstream.onopen(ev)
     this.dispatchEvent(ev)
   };
   /** invoke upstream.onerror(ev) */
   onerror(ev: Event): void {
+    this.log && console.log(stime(this, ".onerror:"), `upstream.onerror(ev=${ev}), upstream=${className(this.upstream)}`, ev)
     if (!!this.upstream) this.upstream.onerror(ev)
     this.dispatchEvent(ev)
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}`)
+    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}`, ev)
     if (!!this.upstream) this.upstream.onclose(ev)
     this.dispatchEvent(ev)
   };
