@@ -1,24 +1,25 @@
-import type { EzPromise } from '@thegraid/ezpromise'
 import { stime } from '@thegraid/common-lib'
-import { pbMessage, CloseInfo, close_fail, normalClose, readyState } from '.'
-import { CgClient, CgType, CgMessage, DataBuf, AWebSocket, WebSocketBase } from '.'
-import { wsWebSocket } from './wsWebSocket'
-import type ws$WebSocket = require("ws");
+import type { EzPromise } from '@thegraid/ezpromise'
+import type ws from 'ws'
+import { AWebSocket, CgClient, CgMessage, CgType, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
+import { wsWebSocket } from './wsWebSocket.js'
 
 // https://www.npmjs.com/package/mock-socket (presumagly is *just* a mock, does not connect to anything)
 // OR: jsdom (which has ws/WebSocket, but also all of window, DOM, browser stuff)
 /**
- * A WebSocketBase Driver that uses a [nodejs] wsWebSocket.
+ * A WebSocketBase Driver that uses a [nodejs-compatible] wsWebSocket (our minimal adapter)
  * 
  * Suitable for node.js/jest when testing without a browser WebSocket.
  */
 export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
   url: string
-  /** this.ws socket state: { readyState: string, closed: number, closeEmitted: number } */
+  /** this.ws socket state: { readyState: string, closed: number, closeEmitted: number } 
+   * when debugging why jest could not close... look at internal state of ws WebSocket
+   */
   get closeState() {
     if (!this.ws) return {}
-    let wss: ws$WebSocket  = this.ws['wss'] // *could* be a jsdom WebSocket: no, use normal WebSocketBase in that case
+    let wss: ws  = this.ws['wss'] // *could* be a jsdom WebSocket: no, use normal WebSocketBase in that case
     let state = readyState(this.ws), socket = wss['_socket'], recvr = wss['_receiver'], sendr = wss['_sender']
     if (!socket) return { readyState: state }
     let sockRstate = socket['_readableState']

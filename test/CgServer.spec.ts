@@ -1,16 +1,12 @@
-import { WebSocketBase } from '../src/BaseDriver'
-import { stime, EzPromise, pbMessage, CLOSE_CODE, AWebSocket, CloseInfo} from '../src/types'
-import type { CgClient } from '../src/CgClient'
-import { CgMessage, CgType } from '../src/CgProto'
-import type { AckPromise } from '../src/CgBase'
 import { argVal, buildURL } from '@thegraid/common-lib'
-import { TestCgClient, TestCgClientR, wsWebSocketBase } from '../src/wsWebSocketBase'
-import { wsWebSocket } from '../src/wsWebSocket'
-import { listTCPsockets, makeCgClient } from './testFuncs'
-
-function readyState (ws: WebSocket): string {
-  return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
-}
+import { WebSocketBase } from '../src/BaseDriver.js'
+import type { AckPromise } from '../src/CgBase.js'
+import type { CgClient } from '../src/CgClient.js'
+import { CgMessage, CgType } from '../src/CgProto.js'
+import { AWebSocket, CloseInfo, CLOSE_CODE, EzPromise, pbMessage, stime, readyState } from '../src/types.js'
+import { wsWebSocket } from '../src/wsWebSocket.js'
+import { TestCgClient, TestCgClientR, wsWebSocketBase } from '../src/wsWebSocketBase.js'
+import { listTCPsockets } from './testFuncs.js'
 
 var testTimeout = 3000;
 let showenv = !!process.argv.find((val, ndx, ary) => (val == "Xshowenv"))
@@ -19,10 +15,10 @@ let nomsglog = !!process.argv.find((val, ndx, ary) => (val == "Xnomsglog"))
 let xkill = !!process.argv.find((val, ndx, ary) => (val == "Xkill"))
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
-let portStr = argVal('port', '8444', 'X'), port = Number.parseInt(portStr)
+let portStr = argVal('port', '8447', 'X'), port = Number.parseInt(portStr)
 
 const echourl = buildURL('wss', host, 'thegraid.com', 8443)   // "wss://game7.thegraid.com:8443"
-const cgservurl = buildURL('wss', host, 'thegraid.com', port) // "wss://game7.thegraid.com:8444"
+const cgservurl = buildURL('wss', host, 'thegraid.com', port) // "wss://game7.thegraid.com:8447"
 const testurl: string = cgservurl;
 const echoserver: boolean = (testurl == echourl) // if echoserver, expect no Ack.
 

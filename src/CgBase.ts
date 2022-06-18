@@ -1,6 +1,6 @@
-import { BaseDriver } from "./BaseDriver";
-import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
-import { CgMessage, CgType } from "./CgProto";
+import { BaseDriver } from "./BaseDriver.js";
+import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
+import { CgMessage, CgType } from "./CgProto.js";
 
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {

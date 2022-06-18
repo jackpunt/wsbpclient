@@ -1,7 +1,7 @@
 import { stime } from "@thegraid/common-lib"
 import { execSync } from "child_process"
-import { close_normal, close_fail, wsWebSocketBase, CgClient, AnyWSD } from '../src'
-import type { AWebSocket, CgBase, CgMessage, WebSocketBase, pbMessage  } from "../src"
+import { close_normal, close_fail, wsWebSocketBase, CgClient, AnyWSD } from '../src/index.js'
+import type { AWebSocket, CgBase, CgMessage, WebSocketBase, pbMessage  } from "../src/index.js"
 
 export function listTCPsockets(pid = `${process.pid}`) {
   let lsofTCP = execSync(`(lsof -P -i TCP -a -p ${pid}; cat)`, {stdio: ['ignore', 'pipe', 'ignore']} ).toString()
@@ -16,17 +16,22 @@ export function listTCPsockets(pid = `${process.pid}`) {
 export type Driver = (new () => AnyWSD)
 type Listeners = { open?: EventListenerOrEventListenerObject, close?: EventListenerOrEventListenerObject, error?: EventListenerOrEventListenerObject, message?: EventListenerOrEventListenerObject }
 
+/** make websocket driver stack, with the given Driver. 
+ * @param driver typically CgClient [or CgBase<CgMessage>] 
+ * @return the new driver() on top of stack.
+ */
 export function makeCgClient<C extends CgBase<CgMessage>>
     (url: string | AWebSocket, listeners: Listeners = {}, driver: Driver = CgClient)
   : { wsbase: wsWebSocketBase<pbMessage, pbMessage>, cgclient: C } {
-  let wsbase = new wsWebSocketBase()
+  let wsbase = new wsWebSocketBase<pbMessage, CgMessage>()
   let stack = wsbase.connectStream(url, driver) // stack driver[s] *then* connect to url
-  let cgclient = stack[1] as CgBase<CgMessage>
+  let cgclient = stack[1] as CgClient<CgMessage>  as C // stack[0] === wsbase
+  //console.log(stime('', `.makeCgClient: cgclient=`), cgclient)
   listeners.open && cgclient.addEventListener('open', listeners.open)
   listeners.close && cgclient.addEventListener('close', listeners.close)
   listeners.error && cgclient.addEventListener('error', listeners.error)
   listeners.message && cgclient.addEventListener('message', listeners.message)
-  return { wsbase, cgclient: cgclient as C }
+  return { wsbase, cgclient }
 }
 
 export function closeStream(wsbase: WebSocketBase<pbMessage, pbMessage>, logmsg: string = '', closer?: (ev?: CloseEvent)=>void) {

@@ -1,6 +1,6 @@
-import ws$WebSocket = require("ws");
+import ws from "ws"
 
-export { wsWebSocket, ws$WebSocket as ws }
+export { wsWebSocket }
 
 // But then see: https://stackoverflow.com/questions/52299063/why-im-able-to-access-websocket-native-browser-object-in-node-jest
 /** 
@@ -19,7 +19,7 @@ class wsWebSocket implements WebSocket {
   // Pro-forma methods must be declared; 
   // There no Event invocations from DOM coming upstream; not even a DOM Event Dispatcher.
   // because this only run in Node.js; 
-  // Application needs to cast back to ws$WebSocket Event or use .addEventListener()
+  // Application needs to cast back to 'ws' Event or use .addEventListener()
   onclose: (ev: CloseEvent) => void;
   onerror: (ev: Event) => void
   onopen: (ev: Event) => void
@@ -57,14 +57,14 @@ class wsWebSocket implements WebSocket {
   }
   static socketsOpened = 0 // for testing/debug because jest says there's an open socket.
   static socketsClosed = 0
-  wss: ws$WebSocket
+  wss: ws
   constructor(url: string) {
-    this.wss = new ws$WebSocket(url)
+    this.wss = new ws(url)
     this.wss.binaryType = 'arraybuffer';
-    this.wss.onopen = (ev: ws$WebSocket.OpenEvent) => { wsWebSocket.socketsOpened++; this.onopen(ev as any)}
-    this.wss.onclose = (ev: ws$WebSocket.CloseEvent) => { wsWebSocket.socketsClosed++; this.onclose(ev as any)}
-    this.wss.onerror = (ev: ws$WebSocket.ErrorEvent) => { this.onerror(ev as any)}
-    this.wss.onmessage = (ev: ws$WebSocket.MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
+    this.wss.onopen = (ev: ws.Event) => { wsWebSocket.socketsOpened++; this.onopen(ev as any)}
+    this.wss.onclose = (ev: ws.CloseEvent) => { wsWebSocket.socketsClosed++; this.onclose(ev as any)}
+    this.wss.onerror = (ev: ws.ErrorEvent) => { this.onerror(ev as any)}
+    this.wss.onmessage = (ev: ws.MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
     // Dubious event casting above, but at least you get a signal
     // SocketServerDriver overrides: this.wss.onmessage(ev) => this.wsmessage(ev.data)
   }
