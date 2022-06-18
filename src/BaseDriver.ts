@@ -112,7 +112,6 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
     this.log && console.log(stime(this, ".onmessage:"), `this.wsmessage(ev=${ev.type}), upstream=${className(this.upstream)}`)
-    if (!!this.upstream) this.upstream.onmessage(ev)
     //this.dispatchEvent(ev)  // 'message' listener is reserved for wsmessage(DataBuf)
     this.wsmessage(ev.data)   // extract DataBuf<I> & use wsmessage()
   };
@@ -122,6 +121,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * 
    * Probably want to override:  
    * this.parseEval(this.deserialize(data))
+   * @param data DataBuf\<I> from the up-coming event
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
     console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})

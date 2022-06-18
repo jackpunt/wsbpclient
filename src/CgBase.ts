@@ -130,7 +130,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @override BaseDriver
    */
   override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
-    super.wsmessage(data)
+    super.wsmessage(data) // dispatchMessageEvent(data) ? maybe not useful, who would be listening?
     let message = CgMessage.deserialize(data)
     this.parseEval(message, wrapper)
   }
