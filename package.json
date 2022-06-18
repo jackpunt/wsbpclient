@@ -1,6 +1,6 @@
 {
   "name": "@thegraid/wspbclient",
-  "version": "1.4.8",
+  "version": "1.4.9",
   "description": "Protocol handler for Client-Group protocol CgProto",
   "main": "lib/index.js",
   "type": "module",
