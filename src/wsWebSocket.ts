@@ -1,4 +1,4 @@
-import ws from "ws"
+import { CloseEvent as ws$CloseEvent, ErrorEvent as ws$ErrorEvent, Event as ws$Event, MessageEvent as ws$MessageEvent, WebSocket as ws$WebSocket } from "ws"
 
 export { wsWebSocket }
 
@@ -57,14 +57,14 @@ class wsWebSocket implements WebSocket {
   }
   static socketsOpened = 0 // for testing/debug because jest says there's an open socket.
   static socketsClosed = 0
-  wss: ws
+  wss: ws$WebSocket
   constructor(url: string) {
-    this.wss = new ws(url)
+    this.wss = new ws$WebSocket(url)
     this.wss.binaryType = 'arraybuffer';
-    this.wss.onopen = (ev: ws.Event) => { wsWebSocket.socketsOpened++; this.onopen(ev as any)}
-    this.wss.onclose = (ev: ws.CloseEvent) => { wsWebSocket.socketsClosed++; this.onclose(ev as any)}
-    this.wss.onerror = (ev: ws.ErrorEvent) => { this.onerror(ev as any)}
-    this.wss.onmessage = (ev: ws.MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
+    this.wss.onopen = (ev: ws$Event) => { wsWebSocket.socketsOpened++; this.onopen(ev as any)}
+    this.wss.onclose = (ev: ws$CloseEvent) => { wsWebSocket.socketsClosed++; this.onclose(ev as any)}
+    this.wss.onerror = (ev: ws$ErrorEvent) => { this.onerror(ev as any)}
+    this.wss.onmessage = (ev: ws$MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
     // Dubious event casting above, but at least you get a signal
     // SocketServerDriver overrides: this.wss.onmessage(ev) => this.wsmessage(ev.data)
   }
