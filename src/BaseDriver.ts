@@ -63,8 +63,11 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   // (event: CustomEvent)
   dispatchEvent(event: Event): boolean {
-    if (event.target !== undefined) console.log(stime(this, `.dispatchEvent:`), event)
-    return this.et.dispatchEvent(event) // redispatch an already dispatched event!
+    if (!(event.target == null || event.target == undefined)) {
+      event = (event.type == 'message') 
+        ? this.newMessageEvent((event as MessageEvent).data) 
+        : new Event(event.type, event)
+    }    return this.et.dispatchEvent(event) // redispatch an already dispatched event!
   }
   removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
     this.et.removeEventListener(type, callback, options)
