@@ -1,7 +1,7 @@
 import { stime } from "@thegraid/common-lib"
 import { execSync } from "child_process"
-import { close_normal, close_fail, wsWebSocketBase, CgClient, AnyWSD } from '../src/index.js'
-import type { AWebSocket, CgBase, CgMessage, WebSocketBase, pbMessage  } from "../src/index.js"
+import type { AWebSocket, CgBase, CgMessage, pbMessage, WebSocketBase } from "../src/index.js"
+import { AnyWSD, CgClient, close_normal, wsWebSocketBase } from '../src/index.js'
 
 export function listTCPsockets(pid = `${process.pid}`) {
   let lsofTCP = execSync(`(lsof -P -i TCP -a -p ${pid}; cat)`, {stdio: ['ignore', 'pipe', 'ignore']} ).toString()

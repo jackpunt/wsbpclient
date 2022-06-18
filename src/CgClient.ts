@@ -1,4 +1,4 @@
-import { CgBase } from './CgBase.js'
+import { CgBase } from './CgBase.js';
 import type { pbMessage } from './types.js';
 
 /** 

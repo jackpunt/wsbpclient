@@ -1,4 +1,4 @@
-import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types.js";
+import { AWebSocket, className, CLOSE_CODE, DataBuf, pbMessage, stime, UpstreamDrivable, WebSocketDriver, WebSocketEventHandler } from "./types.js";
 
 interface ListenerInfo {
   callback: EventListenerOrEventListenerObject;
