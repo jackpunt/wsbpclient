@@ -1,4 +1,5 @@
-import { CloseEvent as ws$CloseEvent, ErrorEvent as ws$ErrorEvent, Event as ws$Event, MessageEvent as ws$MessageEvent, WebSocket as ws$WebSocket } from "ws"
+import { WebSocket as ws$WebSocket } from "ws"
+import type {CloseEvent as ws$CloseEvent, ErrorEvent as ws$ErrorEvent, Event as ws$Event, MessageEvent as ws$MessageEvent } from "ws"
 
 export { wsWebSocket }
 
