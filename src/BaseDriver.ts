@@ -124,7 +124,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * @param data DataBuf\<I> from the up-coming event
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
+    this.log && console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
     this.dispatchMessageEvent(data)
   };
   /**
@@ -133,7 +133,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    */
   dispatchMessageEvent(data: DataBuf<I>) {
     let event = this.newMessageEvent(data)
-    console.log(stime(this, `.dispatchMessageEvent: data, event =`), {data, event})
+    this.log && console.log(stime(this, `.dispatchMessageEvent: data, event =`), {data, event})
     this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
   }
 

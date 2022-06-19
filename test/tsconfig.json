@@ -12,6 +12,10 @@
     //"composite": true,
     "sourceMap": false,
     "outDir": "./dist",
-    "rootDirs": [".", "../src"]
+    "rootDirs": [".", "../src"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "ES2020",
+
   }
 }
