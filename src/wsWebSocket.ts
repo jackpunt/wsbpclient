@@ -1,7 +1,5 @@
 import { WebSocket as ws$WebSocket } from "ws"
-import type {CloseEvent as ws$CloseEvent, ErrorEvent as ws$ErrorEvent, Event as ws$Event, MessageEvent as ws$MessageEvent } from "ws"
-
-export { wsWebSocket }
+import type { CloseEvent as ws$CloseEvent, ErrorEvent as ws$ErrorEvent, Event as ws$Event, MessageEvent as ws$MessageEvent } from "ws"
 
 // But then see: https://stackoverflow.com/questions/52299063/why-im-able-to-access-websocket-native-browser-object-in-node-jest
 /** 
@@ -10,7 +8,7 @@ export { wsWebSocket }
  * 
  * Suitable for mocking a browser WebSocket when running on Node.js (jest'ing)
  */
-class wsWebSocket implements WebSocket {
+export class wsWebSocket implements WebSocket {
   get binaryType(): BinaryType { return this.wss.binaryType as "arraybuffer" | "blob" };
   get bufferedAmount(): number { return this.wss.bufferedAmount };
   get extensions(): string { return this.wss.extensions };

@@ -1,4 +1,4 @@
-import { argVal, buildURL, stime } from "@thegraid/common-lib"
+import { argVal, AT, buildURL, stime } from "@thegraid/common-lib"
 import { readyState } from '../src/index.js'
 import { closeStream, listTCPsockets, makeCgClient } from './testFuncs.js'
 
@@ -9,13 +9,12 @@ const echourl = buildURL('wss', host, 'thegraid.com', 8443)   // "wss://game7.th
 const servurl = buildURL('wss', host, 'thegraid.com', port)   // "wss://game7.thegraid.com:8447"
 const testurl: string = servurl;
 const echoserver: boolean = (testurl == echourl) // if echoserver, don't expect server to ACK msgs
-console.log(`testCnx:`, testurl)
+console.log(stime(this, `Connect to testurl = ${AT.ansiText(['green'],testurl)}`))
 
 function openAndClose(logMsg='') {
-  console.log(stime(), `Connect to testurl=${testurl}`)
   let { wsbase: wsb, cgclient: cgc } = makeCgClient(testurl, {
     error: (ev) => {
-      console.log(stime(), `${logMsg} wsb error:`, ev, wsb.closeState);
+      console.log(stime(), `${logMsg} ${AT.ansiText(['red'], 'wsb error:')}`, ev, wsb.closeState);
     },
     open: () => {
       console.log(stime(), `${logMsg} wsb opened & closing:`, wsb.closeState)
@@ -30,7 +29,7 @@ function openAndClose(logMsg='') {
   })
 }
 let x = 1
-openAndClose(`${x++}`)
+openAndClose(`testCnx-${x++}`)
 
 setTimeout(() => {
   listTCPsockets()
