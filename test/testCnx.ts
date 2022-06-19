@@ -1,16 +1,12 @@
 import { argVal, buildURL, stime } from "@thegraid/common-lib"
-import { wsWebSocketBase } from '../src/wsWebSocketBase'
-import { wsWebSocket } from "../src/wsWebSocket"
-import { EzPromise } from '@thegraid/ezpromise'
-import { pbMessage, CloseInfo, readyState, CgClient  } from '../src'
-import type { AWebSocket, WebSocketBase } from '../src'
-import { closeStream, listTCPsockets, makeCgClient } from './testFuncs'
+import { readyState } from '../src/index.js'
+import { closeStream, listTCPsockets, makeCgClient } from './testFuncs.js'
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
-let portStr = argVal('port', '8444', 'X'), port = Number.parseInt(portStr)
+let portStr = argVal('port', '8447', 'X'), port = Number.parseInt(portStr)
 
 const echourl = buildURL('wss', host, 'thegraid.com', 8443)   // "wss://game7.thegraid.com:8443"
-const servurl = buildURL('wss', host, 'thegraid.com', port)   // "wss://game7.thegraid.com:8444"
+const servurl = buildURL('wss', host, 'thegraid.com', port)   // "wss://game7.thegraid.com:8447"
 const testurl: string = servurl;
 const echoserver: boolean = (testurl == echourl) // if echoserver, don't expect server to ACK msgs
 console.log(`testCnx:`, testurl)

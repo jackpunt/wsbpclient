@@ -1,6 +1,6 @@
-import { BaseDriver } from "./BaseDriver";
-import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types";
-import { CgMessage, CgType } from "./CgProto";
+import { BaseDriver } from "./BaseDriver.js";
+import { CgMessage, CgType } from "./CgProto.js";
+import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
 
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {
@@ -130,7 +130,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @override BaseDriver
    */
   override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
-    super.wsmessage(data)
+    super.wsmessage(data) // dispatchMessageEvent(data) ? maybe not useful, who would be listening?
     let message = CgMessage.deserialize(data)
     this.parseEval(message, wrapper)
   }

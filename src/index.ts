@@ -1,9 +1,9 @@
 // The barrel file
 
-export * from './types'
-export * from './BaseDriver'
-export * from './CgBase'
-export * from './CgClient'
-export * from './CgProto'
-export * from './wsWebSocket'
-export * from './wsWebSocketBase'
+export * from './types.js'
+export * from './BaseDriver.js'
+export * from './CgBase.js'
+export * from './CgClient.js'
+export * from './CgProto.js'
+export * from './wsWebSocket.js'
+export * from './wsWebSocketBase.js'

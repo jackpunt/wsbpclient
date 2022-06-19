@@ -1,4 +1,4 @@
-import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types";
+import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types.js";
 
 interface ListenerInfo {
   callback: EventListenerOrEventListenerObject;
@@ -67,7 +67,8 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
       event = (event.type == 'message') 
         ? this.newMessageEvent((event as MessageEvent).data) 
         : new Event(event.type, event)
-    }    return this.et.dispatchEvent(event) // redispatch an already dispatched event!
+    }
+    return this.et.dispatchEvent(event) // redispatch an already dispatched event!
   }
   removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
     this.et.removeEventListener(type, callback, options)
@@ -92,26 +93,25 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    this.log && console.log(stime(this, ".onopen:"), `upstream.onopen(ev=${ev}), upstream=${className(this.upstream)}`, ev)
+    this.log && console.log(stime(this, ".onopen:"), `upstream.onopen(ev=${ev.type}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onopen(ev)
     this.dispatchEvent(ev)
   };
   /** invoke upstream.onerror(ev) */
   onerror(ev: Event): void {
-    this.log && console.log(stime(this, ".onerror:"), `upstream.onerror(ev=${ev}), upstream=${className(this.upstream)}`, ev)
+    this.log && console.log(stime(this, ".onerror:"), `upstream.onerror(ev=${ev.type}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onerror(ev)
     this.dispatchEvent(ev)
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev}), upstream=${className(this.upstream)}`, ev)
+    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev.type}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onclose(ev)
     this.dispatchEvent(ev)
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
-    //console.log(stime(this, ".onmessage:"), "this.wsmessage(ev.data), upstream=", className(this.upstream))
-    if (!!this.upstream) this.upstream.onmessage(ev)
+    this.log && console.log(stime(this, ".onmessage:"), `this.wsmessage(ev=${ev.type}), upstream=${className(this.upstream)}`)
     //this.dispatchEvent(ev)  // 'message' listener is reserved for wsmessage(DataBuf)
     this.wsmessage(ev.data)   // extract DataBuf<I> & use wsmessage()
   };
@@ -121,8 +121,10 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * 
    * Probably want to override:  
    * this.parseEval(this.deserialize(data))
+   * @param data DataBuf\<I> from the up-coming event
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
+    console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
     this.dispatchMessageEvent(data)
   };
   /**
@@ -131,6 +133,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    */
   dispatchMessageEvent(data: DataBuf<I>) {
     let event = this.newMessageEvent(data)
+    console.log(stime(this, `.dispatchMessageEvent: data, event =`), {data, event})
     this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
   }
 
@@ -157,7 +160,7 @@ export type AnyWSD = WebSocketDriver<pbMessage, pbMessage>
 /**
  * Bottom of the websocket driver stack: connect actual WebSocket.
  * 
- * Send & Recieve messages over a WebSocket.
+ * Send & Recieve messages over a given WebSocket.
  */
 export class WebSocketBase<I extends pbMessage, O extends pbMessage> 
   extends BaseDriver<I, O> {
@@ -185,7 +188,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * @returns this WebSocketBase
    * @override to accept AWebSocket | string
    */
-  connectDnStream(ws_or_url: AWebSocket | string | UpstreamDrivable<O>): this {
+  override connectDnStream(ws_or_url: AWebSocket | string | UpstreamDrivable<O>): this {
     return this.connectWebSocket(ws_or_url as AWebSocket | string )
   }
   /** Implements connectDnStream(WebSocketDriver) -> connect to WebSocket|url.
@@ -225,12 +228,12 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   };
 
   /** process data from upstream by passing it downsteam. */
-  sendBuffer(data: DataBuf<O>): void {
+  override sendBuffer(data: DataBuf<O>): void {
     this.ws.send(data)
   }
 
   /** invoke WebSocket.close(code, reason) */
-  closeStream(code: CLOSE_CODE, reason: string): void {
+  override closeStream(code: CLOSE_CODE, reason: string): void {
     if (!this.ws) return        // close always legal, should not fail.
     this.ws.close(code, reason) // invoke libdom interface to WebSocket; AWebSocket -> wsWebSocket implements
   }

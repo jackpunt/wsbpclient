@@ -1,8 +1,8 @@
 import type { EzPromise } from '@thegraid/ezpromise'
 import { stime } from '@thegraid/common-lib'
-import { pbMessage, CloseInfo, close_fail, normalClose, readyState } from '.'
-import { CgClient, CgType, CgMessage, DataBuf, AWebSocket, WebSocketBase } from '.'
-import { wsWebSocket } from './wsWebSocket'
+import { pbMessage, CloseInfo, close_fail, normalClose, readyState } from './index.js'
+import { CgClient, CgType, CgMessage, DataBuf, AWebSocket, WebSocketBase } from './index.js'
+import { wsWebSocket } from './wsWebSocket.js'
 import type ws$WebSocket = require("ws");
 
 // https://www.npmjs.com/package/mock-socket (presumagly is *just* a mock, does not connect to anything)

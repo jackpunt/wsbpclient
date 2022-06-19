@@ -3,8 +3,7 @@
   "files": [
     "CgServer.spec.ts",
     "CgMessage.spec.ts",
-    "testCnx.ts",
-    "testCgCnx.ts"
+    "testCnx.ts"
   ],
   "include": [
     "test/*.ts"

@@ -1,7 +1,5 @@
-import { WebSocketBase } from './BaseDriver';
-import { CgBase } from './CgBase'
-import type { CgMessage } from './CgProto';
-import type { pbMessage } from './types';
+import { CgBase } from './CgBase.js';
+import type { pbMessage } from './types.js';
 
 /** 
  * A WebSocketDriver for CgProto (client-group.proto)
