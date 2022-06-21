@@ -40,7 +40,8 @@ class ServerSideEventTarget implements EventTarget {
 export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget {
   dnstream: UpstreamDrivable<I>;      // next driver downstream
   upstream: WebSocketEventHandler<O>; // next driver upstream
-  log: boolean = false
+  log: number = 0 // -1: No log, 0: minimal/useful log, 1: detail log, 2: extra log
+  ll(l: number) { return this.log >= l }
 
   newMessageEvent(data: DataBuf<I>): MessageEvent {
     try {
@@ -93,25 +94,25 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   }
   /** invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    this.log && console.log(stime(this, ".onopen:"), `upstream.onopen(ev=${ev.type}), upstream=${className(this.upstream)}`)
+    this.ll(1) && console.log(stime(this, ".onopen:"), `upstream.onopen(ev=${ev.type}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onopen(ev)
     this.dispatchEvent(ev)
   };
   /** invoke upstream.onerror(ev) */
   onerror(ev: Event): void {
-    this.log && console.log(stime(this, ".onerror:"), `upstream.onerror(ev=${ev.type}), upstream=${className(this.upstream)}`)
+    this.ll(1) && console.log(stime(this, ".onerror:"), `upstream.onerror(ev=${ev.type}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onerror(ev)
     this.dispatchEvent(ev)
   };
   /** invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    this.log && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev.type}), upstream=${className(this.upstream)}`)
+    this.ll(1) && console.log(stime(this, ".onclose:"), `upstream.onclose(ev=${ev.type}), upstream=${className(this.upstream)}`)
     if (!!this.upstream) this.upstream.onclose(ev)
     this.dispatchEvent(ev)
   };
   /** invoke this.wsmessage(ev.data) */
   onmessage(ev: MessageEvent<DataBuf<I>>): void {
-    this.log && console.log(stime(this, ".onmessage:"), `this.wsmessage(ev=${ev.type}), upstream=${className(this.upstream)}`)
+    this.ll(1) && console.log(stime(this, ".onmessage:"), `this.wsmessage(ev=${ev.type}), upstream=${className(this.upstream)}`)
     //this.dispatchEvent(ev)  // 'message' listener is reserved for wsmessage(DataBuf)
     this.wsmessage(ev.data)   // extract DataBuf<I> & use wsmessage()
   };
@@ -124,16 +125,20 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * @param data DataBuf\<I> from the up-coming event
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    this.log && console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
+    this.ll(1) && console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
     this.dispatchMessageEvent(data)
   };
+  showData(data: DataBuf<I>) {
+    let k = data.filter(v => v >= 32 && v <= 126)
+    return String.fromCharCode(...k)
+  }
   /**
    * Deliver data to 'message' listeners: {type: 'message', data: data}.
    * @param data
    */
-  dispatchMessageEvent(data: DataBuf<I>) {
+  dispatchMessageEvent(data: DataBuf<I>, ll = 0) {
     let event = this.newMessageEvent(data)
-    this.log && console.log(stime(this, `.dispatchMessageEvent: data, event =`), {data, event})
+    this.ll(ll) && console.log(stime(this, `.dispatchMessageEvent: data =`), data)
     this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
   }
 
