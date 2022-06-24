@@ -128,7 +128,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.ll(1) && console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
     this.dispatchMessageEvent(data)
   };
-  showData(data: DataBuf<I>) {
+  stringData(data: DataBuf<I>) {
     let k = data.filter(v => v >= 32 && v <= 126)
     return String.fromCharCode(...k)
   }

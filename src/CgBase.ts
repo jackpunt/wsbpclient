@@ -186,7 +186,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /** debugging utility */
   innerMessageString(m: CgMessage): string {
     // assert: msg defined ONLY for m.cgType=='send' && 'ack'; m.msg[1] is the INNER type
-    return m && (m.msgStr || `${m.cgType}(${m.cause || m.success})`)
+    return m && (m.msgStr || `${m.cgType}(${m.cause || m.success || m.group})`)
   }
 
   /** 
