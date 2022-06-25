@@ -16,8 +16,8 @@ declare module './CgProto' {
      * send[type+length] OR Ack[2+length]  
      */
     msgPeek: string
-    /** @return CgType as a string: CgType[type] */
-    cgType: string
+    /** @return CgType as a string: CgType[this.type] */
+    msgType: string
   }
 }
 /** [none, send, join, leave] expectsAck */
@@ -29,8 +29,8 @@ CgMessage.prototype.expectsAck = function(): boolean {
 /** a readable view into a CgMessage */
 CgMessage.prototype.outObject = function(): CgMessageOpts {
   let thss: CgMessage = this
-  let { cgType } = thss
-  let msgObj: CgMessageOpts = { cgType }
+  let msgType = thss.msgType  // every CgMessage has a msgType
+  let msgObj: CgMessageOpts = { msgType }
   if (thss.client_id !== undefined) msgObj.client_id = thss.client_id
   if (thss.success !== undefined) msgObj.success = thss.success
   if (thss.client_from !== undefined) msgObj.client_from = thss.client_from
@@ -43,25 +43,26 @@ CgMessage.prototype.outObject = function(): CgMessageOpts {
   return msgObj
 }
 // Augment CgType with accessor that returns CgType as a string.
-Object.defineProperty(CgMessage.prototype, 'cgType', {
+Object.defineProperty(CgMessage.prototype, 'msgType', {
   get: function () {
-    let type = this.type
-    return (type !== CgType.ack) ? CgType[this.type] : this.success? 'Ack' : 'Nak'
+    let thss = (this as CgMessage), type = thss.type
+    return (type !== CgType.ack) ? CgType[type] : this.success ? 'Ack' : 'Nak'
   }
 })
 Object.defineProperty(CgMessage.prototype, 'msgPeek', {
   get: function() {
-    return (this.msg !== undefined) ? `${this.cgType}[${this.msg[1]}+${this.msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
+    let thss = (this as CgMessage), msg = thss.msg
+    return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
   }
 })
+function charString(char: number) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 Object.defineProperty(CgMessage.prototype, 'msgStr', {
   get: function() {
-    let thss: CgMessage = this
-    if (thss.msg === undefined) return undefined
-    let strFromChar = (char: number) => (char >= 32) ? String.fromCharCode(char) : `\\${char}` ;
-    let chars = [], bytes = (thss.msg as Uint8Array);
-    for( let i = 2; i<thss.msg.length; i++) chars.push(strFromChar(bytes[i])) 
-    return `${thss.cgType}[${thss.msg[1]}+${thss.msg.length}${":".concat(...chars)}]`
+    let { msg, msgType } = (this as CgMessage)
+    if (msg === undefined) return undefined
+    let bytes = new Uint8Array(msg).slice(2), strs: string[] = []
+    bytes.forEach(char => strs.push(charString(char)))
+    return `${msgType}[${msg[1]}+${msg.length}${":".concat(...strs)}]`
   }
 })
 
@@ -118,7 +119,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /** true if last outbound request has been Ack'd */
   get ack_resolved(): boolean { return this.promise_of_ack.resolved }
   get ack_message(): CgMessage { return this.promise_of_ack.message }
-  get ack_message_type(): string { return this.promise_of_ack.message.cgType }
+  get ack_message_type(): string { return this.promise_of_ack.message.msgType }
   
   deserialize(bytes: DataBuf<CgMessage>): CgMessage  {
     return CgMessage.deserialize(bytes)
@@ -185,8 +186,10 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** debugging utility */
   innerMessageString(m: CgMessage): string {
-    // assert: msg defined ONLY for m.cgType=='send' && 'ack'; m.msg[1] is the INNER type
-    return m && (m.msgStr || `${m.cgType}(${m.cause || m.success})`)
+    // assert: msg defined ONLY for m.msgType=='send' && 'ack'; m.msg[1] is the INNER type
+    // but we don't have the deserializer to inspect it [!unless! upstream has a 'deserial' method?]
+    // Hmm... if(m) then !!m.msgStr; so the || branch is likely never invoked
+    return m && (m.msgStr || `${m.msgType}(${m.cause || m.success || m.group})`)
   }
 
   /** 
@@ -308,12 +311,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   parseEval(message: CgMessage, wrapper?: pbMessage, ...args: any): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
-    this.log && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.cgType}:`), this.innerMessageString(message))
+    this.log && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.msgType}:`), this.innerMessageString(message))
     switch (message.type) {
       case CgType.ack: {
         if (this.ack_resolved) {
-          let { cgType, success, cause, client_id} = message
-          this.log && console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", {cgType, success, cause})
+          let { msgType, success, cause, client_id} = message
+          this.log && console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", { msgType, success, cause })
           // console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.innerMessageString(this.promise_of_ack.message))
           break
         } else if (message.success) {
@@ -329,7 +332,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       case CgType.send: { this.eval_send(message); break }
       case CgType.none: { this.eval_none(message); break }
       default: {
-        this.log && console.log(stime(this, ".parseEval:"), "message has no CgType: ", message)
+        console.warn(stime(this, ".parseEval:"), "message has unknown CgType: ", message)
       }
     }
     return
