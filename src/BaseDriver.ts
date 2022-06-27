@@ -160,7 +160,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.dnstream.sendBuffer(data)
   }
   /** Process close request by sending it dnstream */
-  closeStream(code: CLOSE_CODE, reason: string): void {
+  closeStream(code: CLOSE_CODE = CLOSE_CODE.NormalClosure, reason = 'normal'): void {
     this.dnstream.closeStream(code, reason)
   }
 }
@@ -243,7 +243,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
   }
 
   /** invoke WebSocket.close(code, reason) */
-  override closeStream(code: CLOSE_CODE, reason: string): void {
+  override closeStream(code?: CLOSE_CODE, reason?: string): void {
     if (!this.ws) return        // close always legal, should not fail.
     this.ws.close(code, reason) // invoke libdom interface to WebSocket; AWebSocket -> wsWebSocket implements
   }
