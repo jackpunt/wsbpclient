@@ -244,8 +244,8 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
 
   /** invoke WebSocket.close(code, reason) */
   override closeStream(code?: CLOSE_CODE, reason?: string): void {
-    if (!this.ws) return        // close always legal, should not fail.
-    this.ws.close(code, reason) // invoke libdom interface to WebSocket; AWebSocket -> wsWebSocket implements
+    // close always legal, should not fail [altho: close on a Closed/Closing stream?]
+    this.ws?.close(code, reason) // invoke libdom interface to WebSocket; AWebSocket -> wsWebSocket implements
   }
 
 }

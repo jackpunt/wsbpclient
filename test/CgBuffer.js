@@ -1,23 +1,10 @@
 //import { CgMessage } from '@thegraid/wspbclient'
 import { CgMessage, CgType } from '../lib/CgProto.js'
+import { CmMessage, CmType } from '../../../ng/citymap/out-tsc/app/proto/CmProto.js'
+import { HgMessage, HgType } from '../../../ng/hexline/src/proto/HgProto.js'
 
 
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
-function msgType() {
-  let thss = (this), type = thss.type
-  return (type !== CgType.ack) ? CgType[type] : this.success ? 'Ack' : 'Nak'
-}
-function msgPeek() {
-  let thss = (this), msg = thss.msg
-  return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
-}
-function msgStr() {
-  let { msg, msgType } = (this)
-  if (msg === undefined) return undefined
-  let bytes = new Uint8Array(msg).slice(2), strs = []
-  bytes.forEach(char => strs.push(charString(char)))
-  return `${msgType}[${msg[1]}+${msg.length}${":".concat(...strs)}]`
-}
 
 // add methods to the objects created by new CgMessage()
 Object.defineProperties(CgMessage.prototype, {
@@ -42,9 +29,23 @@ Object.defineProperties(CgMessage.prototype, {
     get: function msgStr() {
       let msg = this.msg
       if (msg === undefined) return undefined
-      let bytes = new Uint8Array(msg).slice(0), strs = []
+      let bytes = msg.slice(2), strs = []
       bytes.forEach(char => strs.push(charString(char)))
       return `${this.msgPeek}${":".concat(...strs)}]`
+    }
+  }, 'cmMsg': {
+    get: function cmMsg() {
+      let bytes = this.msg
+      if (!bytes) return '' // else get an empty CmMessage: {,,,,,,,,}
+      let oMsg = CmMessage.deserialize(bytes)
+      return `${CmType[oMsg.type]}:${oMsg}`
+    }
+  }, 'hgMsg': {
+    get: function hgMsg() {
+      let bytes = this.msg
+      if (!bytes) return '' // else get an empty HgMessage: {,,,,,,,,}
+      let oMsg = HgMessage.deserialize(bytes)
+      return `${HgType[oMsg.type]}:${oMsg}`
     }
   }
 })
@@ -103,20 +104,18 @@ function stringData(data) {
   let k = data.filter(v => v >= 32 && v <= 126)
   return String.fromCharCode(...k)
 }
-function showArray(data, ident='') {
-  console.log(`\n${ident} Strings = "${stringData(data)}"`)
-  //console.log(`${ident} Data =`, data)
+function showArray(data, ident='', dmsg) {
   try {
+    console.log(`\n${ident} Strings = "${stringData(data)}"`)
     let msg2 = CgMessage.deserialize(data)  // TODO: parse inner if CgType == 'send'
-    //console.log(`${ident} Xtype =`, msg2.msgType, `[${msg2.msgStr?msg2.msgStr:''}]`, msg2) // TODO: parse inner if CgType == 'send'
-    console.log(`${ident} Ytype =`, msg2.msgType, msg2.outObject2())
-    console.log(`${ident} Ztype =`, msg2.msgType, msg2.outObject())
+    console.log(`${ident} type =`, msg2.msgType, msg2.outObject())
+    console.log(`${ident} ${dmsg} =`, msg2.msgType, msg2[dmsg])
   } catch (err) { 
     console.log(`${ident} CgMessage = fail: `, err)
   }
 }
-function showHexString(str) {
-  showArray(hexStringTo8Ary(str), 'HexArray:')
+function showHexString(str, deserial) {
+  showArray(hexStringTo8Ary(str), 'HexArray:', deserial)
 }
 
 // backquote works with literal linefeed:
@@ -128,4 +127,7 @@ let str1 = `0: 66\n1: 68\n`;
 //showChromeAry(str1)
 
 //showHexString(`08 03 10 00 2a 07 72 65 66 65 72 65 65 4a 0d 68 65 78 6c 69 6e 65 3a 67 61 6d 65 31`)
-showHexString(`08 02 20 01 42 1c 08 01 18 00 22 16 0a 10 70 6c 61 79 65 72 30 2d 52 45 44 2d 44 69 73 74 10 00 20 01`)
+showHexString(`08 02 20 01 42 1c 08 01 18 00 22 16 0a 10 70 6c 61 79 65 72 30 2d 52 45 44 2d 44 69 73 74 10 00 20 01`, 'cmMsg')
+showHexString(`08 01 18 01 20 00 2a 07 6c 65 61 76 69 6e 67 4a 0d 68 65 78 6c 69 6e 65 3a 67 61 6d 65 31`, 'hgMsg')
+showHexString(`08 02 20 00 42 25 08 08 10 00 18 ff ff ff ff ff ff ff ff ff 01 22 07 72 65 66 65 72 65 65 52 0b 10 00 18 01 22 05 41 6c 69 63 65 50 01`, 'hgMsg')
+showHexString(`08 02 20 00 42 23 08 08 10 02 18 01 22 03 42 6f 62 52 0b 10 00 18 01 22 05 41 6c 69 63 65 52 09 10 01 18 02 22 03 42 6f 62 50 01`, 'hgMsg')

@@ -25,6 +25,7 @@ CgMessage.prototype.expectsAck = function(): boolean {
   return [CgType.none, CgType.send, CgType.join, CgType.leave].includes(this.type)
 }
 //    
+function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 
 /** a readable view into a CgMessage */
 CgMessage.prototype.outObject = function(): CgMessageOpts {
@@ -43,27 +44,31 @@ CgMessage.prototype.outObject = function(): CgMessageOpts {
   if (thss.acks?.length > 0) msgObj.acks = thss.acks
   return msgObj
 }
-// Augment CgType with accessor that returns CgType as a string.
-Object.defineProperty(CgMessage.prototype, 'msgType', {
-  get: function () {
-    let thss = (this as CgMessage), type = thss.type
-    return (type !== CgType.ack) ? CgType[type] : this.success ? 'Ack' : 'Nak'
-  }
-})
-Object.defineProperty(CgMessage.prototype, 'msgPeek', {
-  get: function() {
-    let thss = (this as CgMessage), msg = thss.msg
-    return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
-  }
-})
-function charString(char: number) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
-Object.defineProperty(CgMessage.prototype, 'msgStr', {
-  get: function() {
-    let { msg, msgType } = (this as CgMessage)
-    if (msg === undefined) return undefined
-    let bytes = new Uint8Array(msg).slice(2), strs: string[] = []
-    bytes.forEach(char => strs.push(charString(char)))
-    return `${msgType}[${msg[1]}+${msg.length}${":".concat(...strs)}]`
+// add methods to the objects created by new CgMessage()
+Object.defineProperties(CgMessage.prototype, {
+  // return CgType as a string
+  'msgType': {
+    get: function msgType() {
+      let thss = (this as CgMessage), type = thss.type
+      return (type !== CgType.ack) ? CgType[type] : this.success ? 'Ack' : 'Nak'
+    }
+  },
+  // short string [type + length] of inner 'msg' of send/ack
+  'msgPeek': {
+    get: function msgPeek() {
+      let thss = (this as CgMessage), msg = thss.msg
+      return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
+    }
+  }, 
+  // full charString of inner 'msg' or send/ack
+  'msgStr': {
+    get: function msgStr() {
+      let msg = (this as CgMessage).msg
+      if (msg === undefined) return undefined
+      let bytes = msg.slice(1), strs = []
+      bytes.forEach(char => strs.push(charString(char)))
+      return `${this.msgPeek}${":".concat(...strs)}]`
+    }
   }
 })
 
