@@ -40,6 +40,7 @@ CgMessage.prototype.outObject = function(): CgMessageOpts {
   if (thss.group !== undefined) msgObj.group = thss.group
   if (thss.nocc !== undefined) msgObj.nocc = thss.nocc
   if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
+  if (thss.acks?.length > 0) msgObj.acks = thss.acks
   return msgObj
 }
 // Augment CgType with accessor that returns CgType as a string.
@@ -125,15 +126,14 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return CgMessage.deserialize(bytes)
   }
   /** 
-   * dispatch, deserialize && parseEval(message) 
+   * dispatchMessageEvent(data); parseEval(message = this.deserialize(data) )
    * @param data DataBuf containing \<CgMessage>
    * @param wrapper [unlikely...]
    * @override BaseDriver
    */
   override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
     super.wsmessage(data) // dispatchMessageEvent(data) ? maybe not useful, who would be listening?
-    let message = CgMessage.deserialize(data)
-    this.parseEval(message, wrapper)
+    this.parseEval(this.deserialize(data), wrapper)
   }
 
   /**
@@ -344,7 +344,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   on_leave(cause: string) {
     this.log && console.log(stime(this, ".on_leave:"), "closeStream:", cause)
-    this.closeStream(CLOSE_CODE.NormalCLosure, cause) // presumably ref will have an onclose to kill itself
+    this.closeStream(CLOSE_CODE.NormalClosure, cause) // presumably ref will have an onclose to kill itself
   }
   /**
    * Pro-forma: process positive Ack from join, leave, send.

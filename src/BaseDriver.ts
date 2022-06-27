@@ -1,4 +1,4 @@
-import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className } from "./types.js";
+import { AWebSocket, WebSocketDriver, DataBuf, pbMessage, WebSocketEventHandler, UpstreamDrivable, CLOSE_CODE, stime, className, PbParser } from "./types.js";
 
 interface ListenerInfo {
   callback: EventListenerOrEventListenerObject;
@@ -21,7 +21,8 @@ class ServerSideEventTarget implements EventTarget {
         lis.callback.call(this, event)
       }
     })
-    return event.returnValue
+    event.cancelable, event.defaultPrevented
+    return (event.cancelable == false || event.defaultPrevented == false) // so: 'true' mostly
   }
   removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
     let tlist = this.listeners[type]
@@ -37,7 +38,7 @@ class ServerSideEventTarget implements EventTarget {
  * O (OUTER) is closer to the application, aka upstream; top of of stack
  * 
  */
-export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget {
+export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget, PbParser<I> {
   dnstream: UpstreamDrivable<I>;      // next driver downstream
   upstream: WebSocketEventHandler<O>; // next driver upstream
   log: boolean = false
@@ -128,7 +129,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.dispatchMessageEvent(data)
   };
   /**
-   * Deliver data to 'message' listeners: {type: 'message', data: data}.
+   * Deliver MessageEvent(data) to 'message' listeners: {type: 'message', data: data}.
    * @param data
    */
   dispatchMessageEvent(data: DataBuf<I>) {
@@ -137,19 +138,28 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
   }
 
-  deserialize(bytes: Uint8Array): I {
-    throw new Error("Method not implemented.");
+  /** convert DataBuf\<I\> to pbMessage
+   * @abstract derived classes must override 
+   */
+  deserialize(data: DataBuf<I>): I {
+    throw new Error(`Method not implemented: deserialize(${data})`);
   }
 
+  /** Execute the semantic actions of the pbMessage: I
+   * 
+   * typically: this[\`eval_${message.msgType}\`].call(this, message, ...args)
+   * @param message from deserialized DataBuf\<I\> (from dnstream)
+   * @abstract derived classes must override 
+   */
   parseEval(message: I, ...args: any): void {
-    throw new Error("Method not implemented.");
+    throw new Error(`Method not implemented: parseEval(${message})`);
   }
 
-  /** process data from upstream by passing it dnsteam. */
+  /** Process data from upstream by passing it dnstream. */
   sendBuffer(data: DataBuf<O>): void {
     this.dnstream.sendBuffer(data)
   }
-  /** process close by sending it dnstream */
+  /** Process close request by sending it dnstream */
   closeStream(code: CLOSE_CODE, reason: string): void {
     this.dnstream.closeStream(code, reason)
   }

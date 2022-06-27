@@ -10,7 +10,7 @@ export interface pbMessage extends jspb.Message {}
  * https://docs.microsoft.com/en-us/dotnet/api/system.net.websockets.websocketclosestatus 
  */
 export enum CLOSE_CODE { 
-  NormalCLosure = 1000, 
+  NormalClosure = 1000, 
   EndpointUnavailable = 1001, 
   ProtocolError =	1002,
   Empty = 1005, 
@@ -22,8 +22,8 @@ export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "C
 // CLOSING = 2
 // CLOSED = 3
 export type CloseInfo = { code: number, reason: string }
-export function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalCLosure, reason: reason}}
-export const close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "normal_closure" }
+export function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalClosure, reason: reason}}
+export const close_normal: CloseInfo = {code: CLOSE_CODE.NormalClosure, reason: "normal_closure" }
 export const close_fail: CloseInfo = { code: CLOSE_CODE.Empty, reason: "failed"}
 export function readyState (ws: WebSocket): string {
   return ["CONNECTING" , "OPEN" , "CLOSING" , "CLOSED"][ws.readyState]
@@ -49,7 +49,7 @@ export interface WebSocketEventHandler<I extends pbMessage> {
 
 export interface PbParser<T extends pbMessage> {
 	deserialize(bytes: DataBuf<T>): T
-	parseEval(message:T, ...args: any): void;
+  parseEval(message: T, ...args: any): void;
 }
 /** WebSocketDriver that can be linked by an upstream driver */
 export interface UpstreamDrivable<O extends pbMessage> {
