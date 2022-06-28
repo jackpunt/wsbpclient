@@ -14,6 +14,7 @@ export enum CLOSE_CODE {
   EndpointUnavailable = 1001, 
   ProtocolError =	1002,
   Empty = 1005, 
+  Abnormal = 1006, // closed by browser, socket error?
   PolicyViolation	= 1008,
 }
 export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED">
