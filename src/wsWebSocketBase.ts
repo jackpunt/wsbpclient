@@ -1,7 +1,6 @@
-import type { EzPromise } from '@thegraid/ezpromise'
 import { stime } from '@thegraid/common-lib'
-import { pbMessage, CloseInfo, close_fail, normalClose, readyState } from './index.js'
-import { CgClient, CgType, CgMessage, DataBuf, AWebSocket, WebSocketBase } from './index.js'
+import type { EzPromise } from '@thegraid/ezpromise'
+import { AWebSocket, CgClient, CgMessage, CgType, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
 import { wsWebSocket } from './wsWebSocket.js'
 import type ws$WebSocket = require("ws");
 
