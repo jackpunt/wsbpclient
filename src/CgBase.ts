@@ -9,6 +9,7 @@ declare module './CgProto' {
     expectsAck(): boolean
     /** extract and stringify fields of CgMessage | CgMessageOpts */
     outObject(): CgMessageOpts
+    /** inner message as msgPeek+stringChars(msg) */
     msgStr: string
     /** 
      * Peek at inner msg without deserializing it.  
@@ -28,10 +29,10 @@ CgMessage.prototype.expectsAck = function(): boolean {
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 
 /** a readable view into a CgMessage */
-CgMessage.prototype.outObject = function(): CgMessageOpts {
+CgMessage.prototype.outObject = function(): CgMessageOptsX {
   let thss: CgMessage = this
   let msgType = thss.msgType  // every CgMessage has a msgType
-  let msgObj: CgMessageOpts = { msgType }
+  let msgObj: CgMessageOptsX = { msgType }
   if (thss.client_id !== undefined) msgObj.client_id = thss.client_id
   if (thss.success !== undefined) msgObj.success = thss.success
   if (thss.client_from !== undefined) msgObj.client_from = thss.client_from
@@ -76,7 +77,11 @@ Object.defineProperties(CgMessage.prototype, {
 //    = (cnx: CgBaseCnx<INNER, OUTER>) => PbParser<INNER>;
 
 // https://www.typescriptlang.org/docs/handbook/utility-types.html
-type CGMK = Exclude<keyof CgMessage, Partial<keyof pbMessage> | "serialize">
+type CGMKw = "serialize" | "outObject" | "expectsAck" // hidden
+type CGMKx = "msgType" | "msgPeek" | "msgStr"         // visible from CgMessageOptX
+type CGMK = Exclude<keyof CgMessage, Partial<keyof pbMessage> | CGMKw | CGMKx >
+type CgMessageOptsX = Partial<Pick<CgMessage, CGMK | CGMKx>>
+/** Attributes that can be set when making/sending a CgMessage. */
 export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
 
 // use { signature } to define a type; a class type using { new(): Type }
@@ -288,6 +293,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /**
    * client leaves the connection to server group.
    * 
+   * The nice way to leave is send this to the Group/Ref, so they know you have gone.
+   * Group/Ref forwards to [all] members. (and, apparently, back to the sender)
+   * 
+   * Or Ref/Server can send this to inform client/group that a client is being booted.
+   * 
+   * Recipient[s] simply Ack; if you are booted, you can close the group cnx, or try to rejoin.
+   * 
    * @param group group_name
    * @param client_id the client_id that is leaving the Group
    * @param cause identifying string
@@ -361,24 +373,25 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   eval_nak(message: CgMessage, req: CgMessage) {
   }
-  /** informed that a client wants to join; check client_id & passcode. */
+  /** informed that a Client wants to join Group; check client_id & passcode. */
   eval_join(message: CgMessage): void {
     this.log && console.log(stime(this, ".eval_join"), message)
     this.sendAck("CgBase default")
     return
   }
 
-  /** informed that [other] client has departed */
+  /** informed that [other] Client has departed Group; or tell Ref: I'm leaving. */
   eval_leave(message: CgMessage): void {
     this.log && console.log(stime(this, ".eval_leave:"), this.innerMessageString(message), message.outObject())
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
-      // booted from group! (or i'm the ref[0] and everyone else has gone)
+      // *I've* been booted from Group! (or I'm the ref[0] and everyone else has gone)
       this.sendAck("leaving", { group: this.group_name })
       this.on_leave("asked to leave")
-      return
+    } else {
+      // Normal client: "Ok, I see that ${client_id} has departed"
+      this.sendAck(className(this)+".eval_leave")  // some other client has left the group...
     }
-    this.sendAck(className(this)+".eval_leave")  // some other client has left the group...
     return
   }
 
@@ -388,8 +401,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * For CgServerCnx: override to sendToGroup()
    * else Server would parseEval on behalf of the client...?
    * 
-   * For CgClient: delegate to upstream protocol handler,
-   * passing along the CgMessage wrapper.
+   * For CgClient: forward inner message to upstream protocol handler,
+   * passing along the outer CgMessage wrapper.
    * 
    * @param message containing message\<IN extends pbMessage>
    * @returns 
