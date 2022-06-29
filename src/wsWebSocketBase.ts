@@ -61,7 +61,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
     let listener = (ev: Event) => {
       let data = (ev as MessageEvent).data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
-      let outObj = cgm.outObject()
+      let outObj = cgm.msgObject()
       this.ll(1) && console.log(stime(this, `.listenFor(${CgType[type]})`), outObj)
       if (cgm.type === type) {
         this.removeEventListener('message', listener)
@@ -77,7 +77,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
 export class TestCgClient<O extends CgMessage> extends CgClient<O> {
   eval_send(message: CgMessage) {
     let inner_msg = CgMessage.deserialize(message.msg)
-    this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.outObject())
+    this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.msgObject())
     this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
   }
 
@@ -106,7 +106,7 @@ export class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
       message.info = "send(aug_none)"
       let aug_send = message.serializeBinary() // augment & re-serialize original CgMessage({type: CgType.send}, ...)
       let pAck = this.sendAck(inner_msg.cause, { client_id: message.client_from, msg: aug_send })
-      this.ll(1) && console.log(stime(this, `.eval_send returning Ack`), pAck.message.outObject())
+      this.ll(1) && console.log(stime(this, `.eval_send returning Ack`), pAck.message.msgObject())
       return
     }
     this.sendAck("send-approved", {client_id: message.client_from})

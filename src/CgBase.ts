@@ -1,4 +1,5 @@
 import { BaseDriver } from "./BaseDriver.js";
+import { json } from "@thegraid/common-lib"
 import { CgMessage, CgType } from "./CgProto.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
 
@@ -8,7 +9,7 @@ declare module './CgProto' {
     /** @return true for: none, send, join, leave */
     expectsAck(): boolean
     /** extract and stringify fields of CgMessage | CgMessageOpts */
-    outObject(): CgMessageOpts
+    msgObject(asStr?: boolean): CgMessageOpts | string
     /** inner message as msgPeek+stringChars(msg) */
     msgStr: string
     /** 
@@ -29,7 +30,7 @@ CgMessage.prototype.expectsAck = function(): boolean {
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 
 /** a readable view into a CgMessage */
-CgMessage.prototype.outObject = function(): CgMessageOptsX {
+CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string {
   let thss: CgMessage = this
   let msgType = thss.msgType  // every CgMessage has a msgType
   let msgObj: CgMessageOptsX = { msgType }
@@ -43,6 +44,10 @@ CgMessage.prototype.outObject = function(): CgMessageOptsX {
   if (thss.nocc !== undefined) msgObj.nocc = thss.nocc
   if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
   if (thss.acks?.length > 0) msgObj.acks = thss.acks
+  if (asStr) {
+    return json(msgObj)
+    //return Object.entries(msgObj).reduce((pv, [key, val]) => pv + `${key}: ${val}, `, '{ ')+'}'
+  }
   return msgObj
 }
 // add methods to the objects created by new CgMessage()
@@ -145,7 +150,20 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     super.wsmessage(data) // dispatchMessageEvent(data) ? maybe not useful, who would be listening?
     this.parseEval(this.deserialize(data), wrapper)
   }
-
+  override logData(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
+    let str = this.stringData(data)
+    let msg = this.deserialize(data)
+    //let msgType = msg.msgType // msgType may be undefined 
+    //let ary = msg?.['array']?.toString()
+    let msgObj = msg?.msgObject(true)       //, toObj = msg?.toObject()
+    let idata = msg?.msg as DataBuf<O>
+    if (idata) {
+      let imsg = (this.upstream as BaseDriver<O, never>)?.deserialize(idata) || 'no deserialize'
+      return { msgObj, str, imsg }
+    }
+    return { msgObj }
+  }
+  
   /**
    * @param ev
    * @override
@@ -382,7 +400,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** informed that [other] Client has departed Group; or tell Ref: I'm leaving. */
   eval_leave(message: CgMessage): void {
-    this.ll(1) && console.log(stime(this, ".eval_leave:"), this.innerMessageString(message), message.outObject())
+    this.ll(1) && console.log(stime(this, ".eval_leave:"), { msgObj: message.msgObject(true) })
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // *I've* been booted from Group! (or I'm the ref[0] and everyone else has gone)
@@ -412,7 +430,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
       this.upstream.wsmessage(message.msg, message)
     } else {
-      this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message)
+      this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())
       this.sendNak("no send upstream", {client_id: message.client_from})
     }
     return

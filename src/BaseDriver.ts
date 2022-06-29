@@ -34,9 +34,10 @@ class ServerSideEventTarget implements EventTarget {
 }
 /**
  * Stackable drivers to move pbMessages up/down from/to websocket.
- * I (INNER) is closer to the websocket, aka downstream; bottom of stack
- * O (OUTER) is closer to the application, aka upstream; top of of stack
  * 
+ * **Note**: the 'O' messages are embedded inside the 'I' messages.. TODO: fix 
+ * @I (INNER) the pbMessage THIS driver handles; this.derserialize(): I
+ * @O (OUTER) the pbMessage of outer driver/app; upstream.deserialze(): O
  */
 export class BaseDriver<I extends pbMessage, O extends pbMessage> implements WebSocketDriver<I, O>, EventTarget, PbParser<I> {
   dnstream: UpstreamDrivable<I>;      // next driver downstream
@@ -126,18 +127,25 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * @param data DataBuf\<I> from the up-coming event
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    this.ll(1) && console.log(stime(this, `.wsmessage: data, wrapper =`), {data, wrapper})
+    this.ll(1) && console.log(stime(this, `.wsmessage:`), this.logData(data))
     this.dispatchMessageEvent(data)
   };
   stringData(data: DataBuf<I>) {
-    let k = data.filter(v => v >= 32 && v <= 126)
+    let k = new Uint8Array(data).filter(v => v >= 32 && v <= 126)
     return String.fromCharCode(...k)
+  }
+  logData(data: DataBuf<I>, wrapper?: pbMessage): {} {
+    let str = this.stringData(data)
+    let msg = this.deserialize(data)
+    if (!msg) return {data, str}
+    let msgType = (msg as any)?.msgType // msgType may be undefined 
+    return { data, str, msgType, msg }
   }
   /**
    * Deliver MessageEvent(data) to 'message' listeners: {type: 'message', data: data}.
    * @param data
    */
-  dispatchMessageEvent(data: DataBuf<I>, ll = 0) {
+  dispatchMessageEvent(data: DataBuf<I>, ll = 2) {
     let event = this.newMessageEvent(data)
     this.ll(ll) && console.log(stime(this, `.dispatchMessageEvent: data =`), data)
     this.dispatchEvent(event) // accessing only ev.type == 'message' & ev.data;
@@ -147,7 +155,8 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * @abstract derived classes must override 
    */
   deserialize(data: DataBuf<I>): I {
-    throw new Error(`Method not implemented: deserialize(${data})`);
+    return undefined
+    //throw new Error(`Method not implemented: deserialize(${data})`);
   }
 
   /** Execute the semantic actions of the pbMessage: I

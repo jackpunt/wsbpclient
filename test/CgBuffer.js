@@ -5,7 +5,12 @@ import { HgMessage, HgType } from '../../../ng/hexline/src/proto/HgProto.js'
 
 
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
-
+function deserialMsg(obj, cls, typ) {
+  let bytes = obj.msg
+  if (!bytes) return '' // else get an empty Message: {,,,,,,,,}
+  let oMsg = cls.deserialize(bytes)
+  return `${typ[oMsg.type]}:${JSON.stringify(oMsg.toObject())}`
+}
 // add methods to the objects created by new CgMessage()
 Object.defineProperties(CgMessage.prototype, {
   // return CgType as a string
@@ -14,16 +19,14 @@ Object.defineProperties(CgMessage.prototype, {
       let thss = (this), type = thss.type
       return (type !== CgType.ack) ? CgType[type] : this.success ? 'Ack' : 'Nak'
     }
-  }
-  ,
+  },
   // short string [type + length] of inner 'msg' of send/ack
   'msgPeek': {
     get: function msgPeek() {
       let thss = (this), msg = thss.msg
       return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
     }
-  }
-  , 
+  }, 
   // full charString of inner 'msg' or send/ack
   'msgStr': {
     get: function msgStr() {
@@ -33,20 +36,12 @@ Object.defineProperties(CgMessage.prototype, {
       bytes.forEach(char => strs.push(charString(char)))
       return `${this.msgPeek}${":".concat(...strs)}]`
     }
+  }, 'cgMsg': {
+    get: function cgMsg() { return deserialMsg(this, CgMessage, CgType) }
   }, 'cmMsg': {
-    get: function cmMsg() {
-      let bytes = this.msg
-      if (!bytes) return '' // else get an empty CmMessage: {,,,,,,,,}
-      let oMsg = CmMessage.deserialize(bytes)
-      return `${CmType[oMsg.type]}:${oMsg}`
-    }
+    get: function cmMsg() { return deserialMsg(this, CmMessage, CmType) }
   }, 'hgMsg': {
-    get: function hgMsg() {
-      let bytes = this.msg
-      if (!bytes) return '' // else get an empty HgMessage: {,,,,,,,,}
-      let oMsg = HgMessage.deserialize(bytes)
-      return `${HgType[oMsg.type]}:${oMsg}`
-    }
+    get: function hgMsg() { return deserialMsg(this, HgMessage, HgType) }
   }
 })
 
@@ -109,7 +104,7 @@ function showArray(data, ident='', dmsg) {
     console.log(`\n${ident} Strings = "${stringData(data)}"`)
     let msg2 = CgMessage.deserialize(data)  // TODO: parse inner if CgType == 'send'
     console.log(`${ident} type =`, msg2.msgType, msg2.outObject())
-    console.log(`${ident} ${dmsg} =`, msg2.msgType, msg2[dmsg])
+    console.log(`${ident} ${dmsg} =`, msg2.msgType, msg2[dmsg]) // if there's an embedded message
   } catch (err) { 
     console.log(`${ident} CgMessage = fail: `, err)
   }
@@ -126,7 +121,10 @@ function showChromeAry(str) {
 let str1 = `0: 66\n1: 68\n`;
 //showChromeAry(str1)
 
-//showHexString(`08 03 10 00 2a 07 72 65 66 65 72 65 65 4a 0d 68 65 78 6c 69 6e 65 3a 67 61 6d 65 31`)
+showArray([8, 2, 16, 1, 24, 1,
+  32, 1, 42, 7, 116, 101,
+  115, 116, 105, 110, 103], 'cgMsg')
+showHexString(`08 02 20 01 42 11 08 02 10 01 18 01 20 01 2a 07 74 65 73 74 69 6e 67 50 01`,'cgMsg')
 //showHexString(`08 02 20 01 42 1c 08 01 18 00 22 16 0a 10 70 6c 61 79 65 72 30 2d 52 45 44 2d 44 69 73 74 10 00 20 01`, 'cmMsg')
-showHexString(`08 01 18 01 20 02 2a 04 6a 6f 69 6e`, 'hgMsg')
+//showHexString(`08 01 18 01 20 02 2a 04 6a 6f 69 6e`, 'hgMsg')
 //showHexString(`08 02 20 00 42 2a 08 08 10 01 18 00 22 05 41 6c 69 63 65 52 0e 10 ef 01 18 00 22 07 72 65 66 65 72 65 65 52 0b 10 00 18 01 22 05 41 6c 69 63 65 50 01`, 'hgMsg')
