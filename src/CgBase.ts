@@ -28,7 +28,10 @@ CgMessage.prototype.expectsAck = function(): boolean {
 }
 //    
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
-
+function json2(obj: object, unquoteKeys = true) {
+  let rv = JSON.stringify(obj).replace(/\\\\/g, '\\') // remove double-escape 
+  return unquoteKeys ? rv.replace(/"(\w*)":/g, '$1:') : rv
+}
 /** a readable view into a CgMessage */
 CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string {
   let thss: CgMessage = this
@@ -45,7 +48,7 @@ CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string
   if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
   if (thss.acks?.length > 0) msgObj.acks = thss.acks
   if (asStr) {
-    return json(msgObj)
+    return json2(msgObj)
     //return Object.entries(msgObj).reduce((pv, [key, val]) => pv + `${key}: ${val}, `, '{ ')+'}'
   }
   return msgObj
@@ -105,7 +108,7 @@ export class AckPromise extends EzPromise<CgMessage> {
 
 /**
  * Implement the base functiunality for the CgProto (client-group) Protocol.
- * BaseDriver\<I extends DataBuf\<CgMessage>, O extends DataBuf\<pbMessage>>
+ * BaseDriver\<I extends CgMessage, O extends pbMessage>>
  */
 export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
@@ -375,7 +378,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /**
    * Action to take after leaving group.
    * Base: closeStream(0, cause)
-   * @param cause 
+   * @param cause included with CLOSE_CODE(Normal) in closeStream()
    */
   on_leave(cause: string) {
     this.ll(1) && console.log(stime(this, ".on_leave:"), "closeStream:", cause)
@@ -405,10 +408,10 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     if (message.client_id === this.client_id) {
       // *I've* been booted from Group! (or I'm the ref[0] and everyone else has gone)
       this.sendAck("leaving", { group: this.group_name })
-      this.on_leave("asked to leave")
+      this.on_leave(`asked to leave: ${message.client_id}`)
     } else {
       // Normal client: "Ok, I see that ${client_id} has departed"
-      this.sendAck(className(this)+".eval_leave")  // some other client has left the group...
+      this.sendAck(className(this)+`.eval_leave(${message.client_id})`)  // some other client has left the group...
     }
     return
   }
@@ -431,7 +434,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       this.upstream.wsmessage(message.msg, message)
     } else {
       this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())
-      this.sendNak("no send upstream", {client_id: message.client_from})
+      this.sendNak("no upstream", {client_id: message.client_from})
     }
     return
   }

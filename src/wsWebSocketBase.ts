@@ -1,6 +1,7 @@
 import { stime } from '@thegraid/common-lib'
 import type { EzPromise } from '@thegraid/ezpromise'
-import type ws from 'ws'
+import type { WebSocket as ws$WebSocket } from "ws"
+
 import { AWebSocket, CgClient, CgMessage, CgType, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
 import { wsWebSocket } from './wsWebSocket.js'
 
@@ -19,7 +20,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
    */
   get closeState() {
     if (!this.ws) return {}
-    let wss: ws  = this.ws['wss'] // *could* be a jsdom WebSocket: no, use normal WebSocketBase in that case
+    let wss: ws$WebSocket  = this.ws['wss'] // *could* be a jsdom WebSocket: no, use normal WebSocketBase in that case
     let state = readyState(this.ws), socket = wss['_socket'], recvr = wss['_receiver'], sendr = wss['_sender']
     if (!socket) return { readyState: state }
     let sockRstate = socket['_readableState']
