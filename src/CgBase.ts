@@ -28,10 +28,7 @@ CgMessage.prototype.expectsAck = function(): boolean {
 }
 //    
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
-function json2(obj: object, unquoteKeys = true) {
-  let rv = JSON.stringify(obj).replace(/\\\\/g, '\\') // remove double-escape 
-  return unquoteKeys ? rv.replace(/"(\w*)":/g, '$1:') : rv
-}
+
 /** a readable view into a CgMessage */
 CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string {
   let thss: CgMessage = this
@@ -48,7 +45,7 @@ CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string
   if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
   if (thss.acks?.length > 0) msgObj.acks = thss.acks
   if (asStr) {
-    return json2(msgObj)
+    return json(msgObj)
     //return Object.entries(msgObj).reduce((pv, [key, val]) => pv + `${key}: ${val}, `, '{ ')+'}'
   }
   return msgObj

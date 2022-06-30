@@ -42,7 +42,7 @@
   },
   "homepage": "https://github.com/jackpunt/wsbpclient#readme",
   "dependencies": {
-    "@thegraid/common-lib": "^1.3.22",
+    "@thegraid/common-lib": "^1.3.24",
     "@thegraid/ezpromise": "^1.0.10",
     "google-protobuf": "^3.20.1",
     "tslib": "^2.3.1",
