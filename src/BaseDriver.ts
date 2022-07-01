@@ -140,7 +140,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     let k = new Uint8Array(data).filter(v => v >= 32 && v <= 126)
     return String.fromCharCode(...k)
   }
-  logData(data: DataBuf<I>, wrapper?: pbMessage): {} {
+  logData(data: DataBuf<I>, wrapper?: pbMessage): {} | string {
     let str = this.stringData(data)
     let msg = this.deserialize(data)
     if (!msg) return {data, str}
