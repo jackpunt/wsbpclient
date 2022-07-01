@@ -145,14 +145,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * 
    * IFF send_send(data.msg) --> this.upstream.wsmessage(data.msg)
    * @param data DataBuf containing \<CgMessage>
-   * @param wrapper [unlikely...]
    * @override BaseDriver
    */
-  override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
-    super.wsmessage(data) // logData(data)
-    this.parseEval(this.deserialize(data), wrapper)
+  override onmessage(data: DataBuf<CgMessage>) {
+    super.onmessage(data) // logData(data)
+    this.parseEval(this.deserialize(data))
   }
-  override logData(data: DataBuf<CgMessage>, wrapper?: pbMessage): {} | string {
+  override logData(data: DataBuf<CgMessage>): {} | string {
     let str = this.stringData(data)
     let msg = this.deserialize(data)
     //let msgType = msg.msgType // msgType may be undefined 
@@ -345,7 +344,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * parse CgType: eval_ each of ack, nak, join, leave, send, none.
    * @param message 
    */
-  parseEval(message: CgMessage, wrapper?: pbMessage, ...args: any): void {
+  parseEval(message: CgMessage): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
     this.ll(1) && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.msgType}:`), this.innerMessageString(message))
@@ -422,7 +421,6 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * else Server would parseEval on behalf of the client...?
    * 
    * For CgClient: forward inner message to upstream protocol handler,
-   * passing along the outer CgMessage wrapper.
    * 
    * @param message with message.msg: DataBuf\<O>
    * @returns 
@@ -430,7 +428,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   eval_send(message: CgMessage): void {
     if (this.upstream) {
       this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
-      this.upstream.wsmessage(message.msg, message)
+      this.upstream.wsmessage(message.msg) // -> upstream.wsmessage(msg)
     } else {
       this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())
       this.sendNak("no upstream", {client_id: message.client_from})

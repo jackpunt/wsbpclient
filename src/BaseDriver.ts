@@ -116,11 +116,8 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.dispatchEvent(ev)
     if (!!this.upstream) this.upstream.onclose(ev)
   };
-  /** listener for MessageEvent from dnstream: invoke this.wsmessage(ev.data) */
-  onmessage(ev: MessageEvent<DataBuf<I>>): void {
-    this.dispatchMessageEvent(ev.data)
-  };
-  /**
+  /** Handler for Message Data.
+   * 
    * process message from downstream: this.dispatchMessageEvent(data)
    * 
    * wsmessage(data) is like an _implicit_ Listener: this.onmessage(ev) => this.wsmessage(ev.data)
@@ -130,17 +127,24 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * 
    * Probably want to override:  
    * this.parseEval(this.deserialize(data))
+   */
+  onmessage(data: DataBuf<I>): void {
+    this.ll(1) && console.log(stime(this, ` BaseDriver.wsmessage:`), this.logData(data))
+  };
+  /**
+   * from dnstream: invoke this.dispatchMessageEvent(data)
    * @param data DataBuf\<I> from the up-coming event
    */
-  wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    this.ll(1) && console.log(stime(this, ` BaseDriver.wsmessage:`), this.logData(data))
+  wsmessage(data: DataBuf<I>): void {
+    this.dispatchMessageEvent(data)  // TODO: before or after onmessage?
+    this.onmessage(data)             // last/implict 'listener' for ev.data
   };
 
   stringData(data: DataBuf<I>) {
     let k = new Uint8Array(data).filter(v => v >= 32 && v <= 126)
     return String.fromCharCode(...k)
   }
-  logData(data: DataBuf<I>, wrapper?: pbMessage): {} | string {
+  logData(data: DataBuf<I>): {} | string {
     let str = this.stringData(data)
     let msg = this.deserialize(data)
     if (!msg) return {data, str}
@@ -150,11 +154,11 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   /**
    * Deliver MessageEvent(data) to 'message' listeners: {type: 'message', data: data}.
    * @param data
+   * @param logLevel = 2; set lower if you want to see more!
    */
   dispatchMessageEvent(data: DataBuf<I>, ll = 2) {
     this.ll(2) && console.log(stime(this, ` BaseDriver.dispatchMessageEvent: data =`), data)
     this.dispatchEvent(this.newMessageEvent(data)) // other listeners... [unlikely]
-    this.wsmessage(data)             // last/implict 'listener' for ev.data
   }
 
   /** convert DataBuf\<I\> to pbMessage
@@ -239,7 +243,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       ws.addEventListener('open', (ev: Event) => this.onopen(ev))
       ws.addEventListener('close', (ev: CloseEvent) => this.onclose(ev))
       ws.addEventListener('error', (ev: ErrorEvent) => this.onerror(ev))
-      ws.addEventListener('message', (ev: MessageEvent) => this.onmessage(ev))
+      ws.addEventListener('message', (ev: MessageEvent) => this.wsmessage(ev.data))
     }
     this.ws = ws;  // may be null
     return this
@@ -249,13 +253,11 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * Forward data from WebSocket to upstream driver: 
    * Every message(DataBuf<I>) is an implicit send_send(DataBuf<O>)
    * @param data DataBuf containing \<I extends pbMessage>
-   * @param wrapper [undefined: because 'dnstream' is the raw WebSocket]
    * @override BaseDriver
    */
-  override wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    super.wsmessage(data) // logData(data)
-    this.ll(2) && console.log(stime(this, " WebSocketBase.wsmesssage"), `upstream=${className(this.upstream)}.wsmessage(${data.byteLength})`)
-    if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
+  override onmessage(data: DataBuf<I>): void {
+    super.onmessage(data) // logData(data)
+    if (!!this.upstream) this.upstream.wsmessage(data)
   };
 
   /** process data from upstream by passing it downsteam. */
