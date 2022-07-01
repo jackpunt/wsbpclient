@@ -1,4 +1,5 @@
 import { BaseDriver } from "./BaseDriver.js";
+import { json } from "@thegraid/common-lib"
 import { CgMessage, CgType } from "./CgProto.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
 
@@ -8,7 +9,7 @@ declare module './CgProto' {
     /** @return true for: none, send, join, leave */
     expectsAck(): boolean
     /** extract and stringify fields of CgMessage | CgMessageOpts */
-    outObject(): CgMessageOpts
+    msgObject(asStr?: boolean): CgMessageOpts | string
     /** inner message as msgPeek+stringChars(msg) */
     msgStr: string
     /** 
@@ -29,7 +30,7 @@ CgMessage.prototype.expectsAck = function(): boolean {
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 
 /** a readable view into a CgMessage */
-CgMessage.prototype.outObject = function(): CgMessageOptsX {
+CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string {
   let thss: CgMessage = this
   let msgType = thss.msgType  // every CgMessage has a msgType
   let msgObj: CgMessageOptsX = { msgType }
@@ -43,6 +44,10 @@ CgMessage.prototype.outObject = function(): CgMessageOptsX {
   if (thss.nocc !== undefined) msgObj.nocc = thss.nocc
   if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
   if (thss.acks?.length > 0) msgObj.acks = thss.acks
+  if (asStr) {
+    return json(msgObj)
+    //return Object.entries(msgObj).reduce((pv, [key, val]) => pv + `${key}: ${val}, `, '{ ')+'}'
+  }
   return msgObj
 }
 // add methods to the objects created by new CgMessage()
@@ -100,7 +105,7 @@ export class AckPromise extends EzPromise<CgMessage> {
 
 /**
  * Implement the base functiunality for the CgProto (client-group) Protocol.
- * BaseDriver\<I extends DataBuf\<CgMessage>, O extends DataBuf\<pbMessage>>
+ * BaseDriver\<I extends CgMessage, O extends pbMessage>>
  */
 export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
@@ -136,21 +141,36 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return CgMessage.deserialize(bytes)
   }
   /** 
-   * dispatchMessageEvent(data); parseEval(message = this.deserialize(data) )
+   * parseEval(message = this.deserialize(data))
+   * 
+   * IFF send_send(data.msg) --> this.upstream.wsmessage(data.msg)
    * @param data DataBuf containing \<CgMessage>
    * @param wrapper [unlikely...]
    * @override BaseDriver
    */
   override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
-    super.wsmessage(data) // dispatchMessageEvent(data) ? maybe not useful, who would be listening?
+    super.wsmessage(data) // logData(data)
     this.parseEval(this.deserialize(data), wrapper)
   }
-
+  override logData(data: DataBuf<CgMessage>, wrapper?: pbMessage): {} | string {
+    let str = this.stringData(data)
+    let msg = this.deserialize(data)
+    //let msgType = msg.msgType // msgType may be undefined 
+    //let ary = msg?.['array']?.toString()
+    let msgObj = msg?.msgObject(true)       //, toObj = msg?.toObject()
+    let idata = msg?.msg as DataBuf<O>
+    if (idata) {
+      let imsg = (this.upstream as BaseDriver<O, never>)?.deserialize(idata) || 'no deserialize'
+      return { msgObj, str, imsg }
+    }
+    return { msgObj }
+  }
+  
   /**
    * @param ev
    * @override
    */
-  onerror(ev: Event) {
+  onerror(ev: ErrorEvent) {
     super.onerror(ev)    // maybe invoke sentError(ev)
     this.promise_of_ack.reject(ev)  // if not already resolved...
   }
@@ -160,7 +180,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @override
    */
   onclose(ev: CloseEvent) {
-    this.log && console.log(stime(this, ".onClose:"), {code: ev.code, reason: ev.reason})
+    this.ll(1) && console.log(stime(this, " CgBase.onclose:"), {code: ev.code, reason: ev.reason, wasClean: ev.wasClean})
     this.promise_of_ack.reject(ev.reason)
     super.onclose(ev) // send to upstream.onclose(ev)
   }
@@ -217,9 +237,9 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck() && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
-      this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), resolved: this.ack_resolved })
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), resolved: this.ack_resolved })
       this.ack_promise.then((ack) => {
-        this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
+        this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
       })
       return ackPromise  // with message un-sent
@@ -233,7 +253,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     this.sendBuffer(bytes) // send message to socket
 
     if (message.expectsAck()) {
-      this.log && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
     } else {
       ackPromise.fulfill(undefined)    // no Ack is coming
@@ -277,16 +297,16 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   send_join(group: string, client_id?: number, cause?: string): AckPromise {
     let message = this.makeCgMessage({ type: CgType.join, group, client_id, cause })
     let promise = this.sendToSocket(message)
-    //console.log(stime(this, ".send_join:"), "promise=", promise, "then=", promise.then)
+    this.ll(2) && console.log(stime(this, ".send_join:"), "promise=", promise, "then=", promise.then)
     promise.then((ack) => {
-      //console.log(stime(this, ".send_join"), "ack=", ack)
+      this.ll(2) && console.log(stime(this, ".send_join"), "ack=", ack)
       this.group_name = ack.group
       this.client_id = ack.client_id
     }, (rej: any) => {
-      this.log && console.log(stime(this, ".send_join:"), "rej=", rej)
+      this.ll(1) && console.log(stime(this, ".send_join:"), "rej=", rej)
     })
     promise.catch((reason:any) => {
-      this.log && console.log(stime(this, ".send_join:"), "catch=", reason)
+      this.ll(1) && console.log(stime(this, ".send_join:"), "catch=", reason)
     })
     return promise
   }
@@ -328,13 +348,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   parseEval(message: CgMessage, wrapper?: pbMessage, ...args: any): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
-    this.log && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.msgType}:`), this.innerMessageString(message))
+    this.ll(1) && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.msgType}:`), this.innerMessageString(message))
     switch (message.type) {
       case CgType.ack: {
         if (this.ack_resolved) {
           let { msgType, success, cause, client_id} = message
-          this.log && console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", { msgType, success, cause })
-          // console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.innerMessageString(this.promise_of_ack.message))
+          this.ll(1) && console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", { msgType, success, cause })
+          this.ll(2) && console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.innerMessageString(this.promise_of_ack.message))
           break
         } else if (message.success) {
           this.eval_ack(message, this.ack_message)
@@ -349,7 +369,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       case CgType.send: { this.eval_send(message); break }
       case CgType.none: { this.eval_none(message); break }
       default: {
-        console.warn(stime(this, ".parseEval:"), "message has unknown CgType: ", message)
+        this.ll(1) && console.warn(stime(this, ".parseEval:"), "message has unknown CgType: ", message)
       }
     }
     return
@@ -357,10 +377,10 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /**
    * Action to take after leaving group.
    * Base: closeStream(0, cause)
-   * @param cause 
+   * @param cause included with CLOSE_CODE(Normal) in closeStream()
    */
   on_leave(cause: string) {
-    this.log && console.log(stime(this, ".on_leave:"), "closeStream:", cause)
+    this.ll(1) && console.log(stime(this, ".on_leave:"), `closeStream(${cause})`)
     this.closeStream(CLOSE_CODE.NormalClosure, cause) // presumably ref will have an onclose to kill itself
   }
   /**
@@ -375,22 +395,22 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   }
   /** informed that a Client wants to join Group; check client_id & passcode. */
   eval_join(message: CgMessage): void {
-    this.log && console.log(stime(this, ".eval_join"), message)
+    this.ll(1) && console.log(stime(this, ".eval_join"), message)
     this.sendAck("CgBase default")
     return
   }
 
   /** informed that [other] Client has departed Group; or tell Ref: I'm leaving. */
   eval_leave(message: CgMessage): void {
-    this.log && console.log(stime(this, ".eval_leave:"), this.innerMessageString(message), message.outObject())
+    this.ll(1) && console.log(stime(this, ".eval_leave:"), { msgObj: message.msgObject(true) })
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // *I've* been booted from Group! (or I'm the ref[0] and everyone else has gone)
       this.sendAck("leaving", { group: this.group_name })
-      this.on_leave("asked to leave")
+      this.on_leave(`asked to leave: ${message.client_id}`)
     } else {
       // Normal client: "Ok, I see that ${client_id} has departed"
-      this.sendAck(className(this)+".eval_leave")  // some other client has left the group...
+      this.sendAck(className(this)+`.eval_leave(${message.client_id})`)  // some other client has left the group...
     }
     return
   }
@@ -404,23 +424,23 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * For CgClient: forward inner message to upstream protocol handler,
    * passing along the outer CgMessage wrapper.
    * 
-   * @param message containing message\<IN extends pbMessage>
+   * @param message with message.msg: DataBuf\<O>
    * @returns 
    */
   eval_send(message: CgMessage): void {
     if (this.upstream) {
-      this.log && console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
+      this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
       this.upstream.wsmessage(message.msg, message)
     } else {
-      this.log && console.log(stime(this, ".eval_send:"), "no upstream:", message)
-      this.sendNak("no send upstream", {client_id: message.client_from})
+      this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())
+      this.sendNak("no upstream", {client_id: message.client_from})
     }
     return
   }
 
   /** not used */
   eval_none(message: CgMessage) {
-    this.log && console.log(stime(this, ".eval_none:"), message.toArray())
+    this.ll(1) && console.log(stime(this, ".eval_none:"), message.toArray())
     this.sendAck("none done", {client_id: message.client_from})
     return
   }

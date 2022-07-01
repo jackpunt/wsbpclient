@@ -1,6 +1,5 @@
-import ws$WebSocket = require("ws");
-//import { WebSocket as ws$WebSocket } from "ws"
-import type { CloseEvent as ws$CloseEvent, ErrorEvent as ws$ErrorEvent, CloseEvent as ws$Event, MessageEvent as ws$MessageEvent } from "ws"
+import type { CloseEvent as ws$CloseEvent, OpenEvent as ws$Event } from "ws"
+import ws$WebSocket from "ws"   //import ws$WebSocket = require("ws");
 
 // But then see: https://stackoverflow.com/questions/52299063/why-im-able-to-access-websocket-native-browser-object-in-node-jest
 /** 
@@ -16,19 +15,15 @@ export class wsWebSocket implements WebSocket {
   get protocol(): string { return this.wss.protocol };
   get readyState(): number { return this.wss.readyState };
   get url(): string { return this.wss.url };
-  // Pro-forma methods must be declared; 
+  // Pro-forma methods must be declared; but are never invoked.
   // There no Event invocations from DOM coming upstream; not even a DOM Event Dispatcher.
-  // because this only run in Node.js; 
-  // Application needs to cast back to ws$WebSocket Event or use .addEventListener()
   onclose: (ev: CloseEvent) => void;
   onerror: (ev: Event) => void
   onopen: (ev: Event) => void
   onmessage: (ev: MessageEvent<Uint8Array>) => void
-  // the above are set by BaseDriver.connectWebSocket! 
-  // which forwards them upstream & invokes DispatchEvent(ev)
-  // a *real* ws.WebSocket.js appears to make the methods unalterable: 
-  // set onclose(listener) {}; get onclose() {return undefined}
-  // below we set the wss.onopen(ev) to call this.onpen(ev); which works: because counters++
+  // setting ws.on${method}(func) is transmuted into: ws.addEventListener(method, func)
+  // SO! do NOT set or call these method/attributes: just use wss.addEventListener()
+  // and extract the needful from the ws$Event
 
   // This is the important bit, sending 'downstream' to inner-wss:
   close(code?: number, reason?: string): void { this.wss.close(code, reason) };
@@ -61,11 +56,7 @@ export class wsWebSocket implements WebSocket {
   constructor(url: string) {
     this.wss = new ws$WebSocket(url)
     this.wss.binaryType = 'arraybuffer';
-    this.wss.onopen = (ev: ws$Event) => { wsWebSocket.socketsOpened++; this.onopen(ev as any)}
-    this.wss.onclose = (ev: ws$CloseEvent) => { wsWebSocket.socketsClosed++; this.onclose(ev as any)}
-    this.wss.onerror = (ev: ws$ErrorEvent) => { this.onerror(ev as any)}
-    this.wss.onmessage = (ev: ws$MessageEvent) => { this.onmessage(ev as any)} // ev.data is common
-    // Dubious event casting above, but at least you get a signal
-    // SocketServerDriver overrides: this.wss.onmessage(ev) => this.wsmessage(ev.data)
+    this.wss.addEventListener('open', (ev: ws$Event) => { wsWebSocket.socketsOpened++})
+    this.wss.addEventListener('close', (ev: ws$CloseEvent) => { wsWebSocket.socketsClosed++})
   }
 }

@@ -30,8 +30,8 @@ console.log(stime(), "CgServer.spec ", `args`, { argv: process.argv, host, port,
 showenv && console.log(stime(), "CgServer.spec ", `env`, { argv: process.env })
 
 
-function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalCLosure, reason: reason}}
-const close_normal: CloseInfo = {code: CLOSE_CODE.NormalCLosure, reason: "test done" }
+function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalClosure, reason: reason}}
+const close_normal: CloseInfo = {code: CLOSE_CODE.NormalClosure, reason: "test done" }
 const close_fail: CloseInfo = { code: CLOSE_CODE.Empty, reason: "failed"}
 
 const testPromises: EzPromise<any>[] = [];
@@ -73,7 +73,7 @@ class TestMsgAcked {
       (reason: any) => { !!expectRej && expectRej(reason) }
     )
     this.pAck.finally(() => { pAckp.fulfill(pAck) })
-    let handler = (msg: CgMessage) => { nomsglog || console.log(stime(this, `.listenForAck: '${this.name}' ==> ${msg.cgType}`)) }
+    let handler = (msg: CgMessage) => { nomsglog || console.log(stime(this, `.listenForAck: '${this.name}' ==> ${msg.msgType}`)) }
     wsbase.listenFor(CgType.ack, handler)
   }
 }
@@ -286,7 +286,7 @@ if (!nomsgs) {
           nomsglog || console.log(stime(here), "returned ack:", cgclient.innerMessageString(ack))
           expect(ack.success).toBe(true)
           expect(ack.cause).toBe('send_done')  // all 'send' are Ack by server with 'send_done' QQQQ: should we fwd Ack from Referee?
-          nomsglog || console.log(stime(here), "returned message", inner_sent.outObject())
+          nomsglog || console.log(stime(here), "returned message", inner_sent.msgObject())
           expect(inner_sent.type).toEqual(CgType.none)
           expect(inner_sent.cause).toEqual(cause)
           expect(inner_sent.info).toEqual(cause)
@@ -296,7 +296,7 @@ if (!nomsgs) {
           echoserver && cgclient.sendAck('send_done', { client_id })
           wsbase.listenFor(CgType.send, (msg) => {
             inner_sent = CgMessage.deserialize(msg.msg)
-            nomsglog || console.log(stime(here), `RECEIVED SEND:`, inner_sent.outObject())
+            nomsglog || console.log(stime(here), `RECEIVED SEND:`, inner_sent.msgObject())
           })
         }, testTimeout - 2000)
     }
