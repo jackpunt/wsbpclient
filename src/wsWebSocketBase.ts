@@ -10,7 +10,9 @@ import { wsWebSocket } from './wsWebSocket.js'
 /**
  * A WebSocketBase Driver that uses a [nodejs-compatible] wsWebSocket (our minimal adapter)
  * 
- * Suitable for node.js/jest when testing without a browser WebSocket.
+ * Suitable for node.js/jest when testing CLIENT without a BROWSER WebSocket.
+ * 
+ * A SERVER WebSocketBase (for Nodejs) is provided in wspbserver: ServerSocketDriver.ts
  */
 export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends WebSocketBase<I, O> {
   // for jest/node: make a wsWebSocket(url), send messages upstream
@@ -32,6 +34,9 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
   }
   /** 
    * extend connectWebSocket to fulfill the given EzPromises when webSocket is OPEN or CLOSE. 
+   * @param ws existing WebSocket or URL string to open wsWebSocket(url)
+   * @param openP fulfilled(AWebSocket) when WebSocket is opened
+   * @param closeP fulfilled(CloseInfo) when WebSocket is closed
    */
   override connectWebSocket(ws: AWebSocket | string, openP?: EzPromise<AWebSocket>, closeP?: EzPromise<CloseInfo>) {
     if (typeof (ws) === 'string') {
@@ -46,7 +51,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
       !!closeP && closeP.fulfill(close_fail)
     })
 
-    this.ws.addEventListener('open', (ev) => {
+    this.ws.addEventListener('open', (ev: Event) => {
       this.ll(1) && console.log(stime(this, " ws_open:"), !!openP ? "   openP.fulfill(ws)" : "    no Promise")
       !!openP && openP.fulfill(this.ws)
     })

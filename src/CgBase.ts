@@ -141,13 +141,15 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return CgMessage.deserialize(bytes)
   }
   /** 
-   * dispatchMessageEvent(data); parseEval(message = this.deserialize(data) )
+   * parseEval(message = this.deserialize(data))
+   * 
+   * IFF send_send(data.msg) --> this.upstream.wsmessage(data.msg)
    * @param data DataBuf containing \<CgMessage>
    * @param wrapper [unlikely...]
    * @override BaseDriver
    */
   override wsmessage(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
-    super.wsmessage(data) // dispatchMessageEvent(data) ? maybe not useful, who would be listening?
+    super.wsmessage(data) // logData(data)
     this.parseEval(this.deserialize(data), wrapper)
   }
   override logData(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
@@ -168,7 +170,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @param ev
    * @override
    */
-  onerror(ev: Event) {
+  onerror(ev: ErrorEvent) {
     super.onerror(ev)    // maybe invoke sentError(ev)
     this.promise_of_ack.reject(ev)  // if not already resolved...
   }
@@ -178,7 +180,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @override
    */
   onclose(ev: CloseEvent) {
-    this.ll(1) && console.log(stime(this, ".onClose:"), {code: ev.code, reason: ev.reason})
+    this.ll(1) && console.log(stime(this, ".onClose:"), {code: ev.code, reason: ev.reason, wasClean: ev.wasClean})
     this.promise_of_ack.reject(ev.reason)
     super.onclose(ev) // send to upstream.onclose(ev)
   }
@@ -422,7 +424,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * For CgClient: forward inner message to upstream protocol handler,
    * passing along the outer CgMessage wrapper.
    * 
-   * @param message containing message\<IN extends pbMessage>
+   * @param message with message.msg: DataBuf\<O>
    * @returns 
    */
   eval_send(message: CgMessage): void {

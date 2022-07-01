@@ -70,7 +70,9 @@ export interface PbParser<T extends pbMessage> {
 export interface UpstreamDrivable<O extends pbMessage> {
   /** set upstream driver, send bytes upstream */
   connectUpStream(wsd: WebSocketEventHandler<O>): void
+  /** send close request downstream */
   closeStream(code?: CLOSE_CODE, reason?: string): void
+  /** send DataBuf downstream */
   sendBuffer(data: DataBuf<O>): void; // process message from upstream 
   //wsmessage: (buf: DataBuf<I>) => void | null; // process message coming from downstream
 }
