@@ -180,7 +180,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @override
    */
   onclose(ev: CloseEvent) {
-    this.ll(1) && console.log(stime(this, ".onClose:"), {code: ev.code, reason: ev.reason, wasClean: ev.wasClean})
+    this.ll(1) && console.log(stime(this, " CgBase.onclose:"), {code: ev.code, reason: ev.reason, wasClean: ev.wasClean})
     this.promise_of_ack.reject(ev.reason)
     super.onclose(ev) // send to upstream.onclose(ev)
   }
@@ -380,7 +380,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * @param cause included with CLOSE_CODE(Normal) in closeStream()
    */
   on_leave(cause: string) {
-    this.ll(1) && console.log(stime(this, ".on_leave:"), "closeStream:", cause)
+    this.ll(1) && console.log(stime(this, ".on_leave:"), `closeStream(${cause})`)
     this.closeStream(CLOSE_CODE.NormalClosure, cause) // presumably ref will have an onclose to kill itself
   }
   /**

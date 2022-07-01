@@ -100,19 +100,19 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
 
   /** Listener for dnstream 'open' event; invoke upstream.onopen(ev) */
   onopen(ev: Event): void {
-    this.ll(1) && console.log(stime(this, `.onopen:`), `upstream=${className(this.upstream)}.onopen()`)
+    this.ll(1) && console.log(stime(this, ` BaseDriver.onopen:`), `upstream=${className(this.upstream)}.onopen()`)
     this.dispatchEvent(ev)
     if (!!this.upstream) this.upstream.onopen(ev)
   };
   /** Listener for dnstream 'error' events;nvoke upstream.onerror(ev) */
   onerror(ev: ErrorEvent): void {
-    this.ll(1) && console.log(stime(this, `.onerror:`), `upstream=${className(this.upstream)}.onerror()`)
+    this.ll(1) && console.log(stime(this, ` BaseDriver.onerror:`), `upstream=${className(this.upstream)}.onerror()`)
     this.dispatchEvent(ev)
     if (!!this.upstream) this.upstream.onerror(ev)
   };
   /** listener for dnstream 'close' event; invoke upstream.onclose(ev) */
   onclose(ev: CloseEvent): void {
-    this.ll(1) && console.log(stime(this, ".onclose:"), `upstream=${className(this.upstream)}.onerror()`)
+    this.ll(1) && console.log(stime(this, ` BaseDriver.onclose:`), `upstream=${className(this.upstream)}.onclose()`)
     this.dispatchEvent(ev)
     if (!!this.upstream) this.upstream.onclose(ev)
   };
@@ -133,7 +133,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * @param data DataBuf\<I> from the up-coming event
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
-    this.ll(1) && console.log(stime(this, `.wsmessage:`), this.logData(data))
+    this.ll(1) && console.log(stime(this, ` BaseDriver.wsmessage:`), this.logData(data))
   };
 
   stringData(data: DataBuf<I>) {
@@ -152,7 +152,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    * @param data
    */
   dispatchMessageEvent(data: DataBuf<I>, ll = 2) {
-    this.ll(2) && console.log(stime(this, `.dispatchMessageEvent: data =`), data)
+    this.ll(2) && console.log(stime(this, ` BaseDriver.dispatchMessageEvent: data =`), data)
     this.dispatchEvent(this.newMessageEvent(data)) // other listeners... [unlikely]
     this.wsmessage(data)             // last/implict 'listener' for ev.data
   }
@@ -254,7 +254,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    */
   override wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
     super.wsmessage(data) // logData(data)
-    this.ll(2) && console.log(stime(this, ".wsmesssage"), `upstream=${className(this.upstream)}.wsmessage(${data.byteLength})`)
+    this.ll(2) && console.log(stime(this, " WebSocketBase.wsmesssage"), `upstream=${className(this.upstream)}.wsmessage(${data.byteLength})`)
     if (!!this.upstream) this.upstream.wsmessage(data, wrapper)
   };
 
