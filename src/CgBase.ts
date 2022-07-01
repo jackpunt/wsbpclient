@@ -152,7 +152,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     super.wsmessage(data) // logData(data)
     this.parseEval(this.deserialize(data), wrapper)
   }
-  override logData(data: DataBuf<CgMessage>, wrapper?: pbMessage) {
+  override logData(data: DataBuf<CgMessage>, wrapper?: pbMessage): {} | string {
     let str = this.stringData(data)
     let msg = this.deserialize(data)
     //let msgType = msg.msgType // msgType may be undefined 
