@@ -428,7 +428,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   eval_send(message: CgMessage): void {
     if (this.upstream) {
       this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
-      this.upstream.wsmessage(message.msg) // -> upstream.wsmessage(msg)
+      this.upstream.wsmessage(message.msg, message) // -> upstream.wsmessage(msg)
     } else {
       this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())
       this.sendNak("no upstream", {client_id: message.client_from})

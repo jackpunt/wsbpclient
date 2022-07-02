@@ -134,11 +134,15 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   /**
    * from dnstream: invoke this.dispatchMessageEvent(data)
    * @param data DataBuf\<I> from the up-coming event
+   * @param wrapper the encapsulating pbMessage from dnstream; when wrapper = send(msg<I>)
    */
-  wsmessage(data: DataBuf<I>): void {
+  wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
+    this.wrapper = wrapper
     this.dispatchMessageEvent(data)  // TODO: before or after onmessage?
     this.onmessage(data)             // last/implict 'listener' for ev.data
   };
+  /** wrapper for the latest wsmessage(data) received (or undefined if no wrapper supplied) */
+  wrapper: pbMessage
 
   stringData(data: DataBuf<I>) {
     let k = new Uint8Array(data).filter(v => v >= 32 && v <= 126)
@@ -243,7 +247,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
       ws.addEventListener('open', (ev: Event) => this.onopen(ev))
       ws.addEventListener('close', (ev: CloseEvent) => this.onclose(ev))
       ws.addEventListener('error', (ev: ErrorEvent) => this.onerror(ev))
-      ws.addEventListener('message', (ev: MessageEvent) => this.wsmessage(ev.data))
+      ws.addEventListener('message', (ev: MessageEvent) => this.wsmessage(ev.data)) // from WebSocketBase
     }
     this.ws = ws;  // may be null
     return this
@@ -257,7 +261,7 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    */
   override onmessage(data: DataBuf<I>): void {
     super.onmessage(data) // logData(data)
-    if (!!this.upstream) this.upstream.wsmessage(data)
+    if (!!this.upstream) this.upstream.wsmessage(data) // from WebSocketBase
   };
 
   /** process data from upstream by passing it downsteam. */

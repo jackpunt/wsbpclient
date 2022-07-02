@@ -58,7 +58,7 @@ export interface WebSocketEventHandler<I extends pbMessage> {
 	onopen: (ev: Event) => void | null;  // { target: WebSocket }
 	onerror: (ev: Event) => void | null; // { target: WebSocket, error: any, message: any, type: string }
 	onclose: (ev: CloseEvent) => void | null; // { target: WebSocket, wasClean: boolean, code: number, reason: string; }
-	wsmessage: (buf: DataBuf<I>) => void | null; // from downstream: bytes encoding my INPUT proto
+	wsmessage: (buf: DataBuf<I>, wrapper?: pbMessage) => void | null; // from downstream: bytes encoding my INPUT proto
   onmessage: (data: DataBuf<I>) => void | null // process data
 }
 
