@@ -1,4 +1,4 @@
-import { WebSocketBase, pbMessage, CgMessage, AckPromise, CgBase, CgMessageOpts, CgType, stime, BaseDriver, DataBuf, EzPromise, className } from "./index.js";
+import { WebSocketBase, pbMessage, CgMessage, AckPromise, CgBase, CgMessageOpts, CgType, stime, BaseDriver, DataBuf, EzPromise, className, addEnumTypeString } from "./index.js";
 import { Rost } from "./GgProto.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
@@ -36,8 +36,8 @@ export interface GgMessage extends pbMessage {
 //   interface GgMessage { msgType: string }
 // }
 /** augment proto with accessor 'msgType => string' */
-export function addEnumTypeString(ggMessage, anEnum: any = GgType, accessor = 'msgType') {
-  Object.defineProperty(ggMessage.prototype, accessor, {
+function ggaddEnumTypeString(msgClass: { prototype: object }, anEnum: any = GgType, accessor = 'msgType') {
+  Object.defineProperty(msgClass.prototype, accessor, {
     /** GgMessage.type as a string. */
     get: function () { return anEnum[this.type] }
   })
@@ -84,7 +84,8 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     super()
     //if (!Object.hasOwn(OmC.prototype, 'msgType'))
     if (!ImC.prototype.hasOwnProperty('msgType')) 
-      addEnumTypeString(ImC) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
+      addEnumTypeString(ImC, GgType) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
+      //ggaddEnumTypeString(ImC) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
     this.omc = ImC
     let deserial = ImC['deserialize'] as ((buf: DataBuf<InnerMessage>) => InnerMessage)
     let deserial0 = (buf: DataBuf<CgMessage>) => {

@@ -5,11 +5,10 @@ export { EzPromise } from '@thegraid/ezpromise';
 export interface pbMessage extends jspb.Message {}
 export type Constructor<T> = new (...args: any[]) => T; //  Constructor<T = {}>
 
-type typedMessage = { type: number, prototype: object }
 enum typeEnum { none = 0 }
 /** augment proto with accessor 'msgType => string' */
-export function addEnumTypeString(tMessage: typedMessage, tEnum: any = typeEnum, accName = 'msgType') {
-  Object.defineProperty(tMessage.prototype, accName, {
+export function addEnumTypeString(msgClass: { prototype: object }, tEnum: any = typeEnum, accName = 'msgType') {
+  Object.defineProperty(msgClass.prototype, accName, {
     /** protobufMessage.type as a string. */
     get: function () { return tEnum[this.type] }
   })
