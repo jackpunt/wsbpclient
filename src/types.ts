@@ -58,13 +58,13 @@ export interface WebSocketEventHandler<I extends pbMessage> {
 	onopen: (ev: Event) => void | null;  // { target: WebSocket }
 	onerror: (ev: Event) => void | null; // { target: WebSocket, error: any, message: any, type: string }
 	onclose: (ev: CloseEvent) => void | null; // { target: WebSocket, wasClean: boolean, code: number, reason: string; }
-  onmessage(ev: MessageEvent<DataBuf<I>>): void | null // { target: WebSocket, data: any, type: string }
 	wsmessage: (buf: DataBuf<I>, wrapper?: pbMessage) => void | null; // from downstream: bytes encoding my INPUT proto
+  onmessage: (data: DataBuf<I>) => void | null // process data
 }
 
 export interface PbParser<T extends pbMessage> {
 	deserialize(bytes: DataBuf<T>): T
-  parseEval(message: T, ...args: any): void;
+  parseEval(message: T): void;
 }
 /** WebSocketDriver that can be linked by an upstream driver */
 export interface UpstreamDrivable<O extends pbMessage> {
