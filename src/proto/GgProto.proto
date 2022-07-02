@@ -1,0 +1,8 @@
+syntax="proto3";
+
+// on Join: show who all is in the Group [subset of HgMessage!]
+message Rost {
+    int32 client = 2;     // client_id
+    int32 player = 3;     // player_id
+    string name = 4;      // player name
+}
