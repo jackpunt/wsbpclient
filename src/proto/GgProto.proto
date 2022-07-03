@@ -2,7 +2,14 @@ syntax="proto3";
 
 // on Join: show who all is in the Group [subset of HgMessage!]
 message Rost {
-    int32 client = 2;     // client_id
-    int32 player = 3;     // player_id
-    string name = 4;      // player name
+  int32 client = 2;     // client_id
+  int32 player = 3;     // player_id
+  string name = 4;      // player name
+}
+enum GgType {
+  none = 0;
+  next = 6;
+  undo = 7;      // player request/attempts to undo the previous action
+  join = 8;      // Group client joins generic Game
+  chat = 9;      // Group or DM to a player; inter-player chat, log/status from ref.
 }

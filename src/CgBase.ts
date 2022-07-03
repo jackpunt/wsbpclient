@@ -1,8 +1,12 @@
+import { json } from "@thegraid/common-lib";
 import { BaseDriver } from "./BaseDriver.js";
-import { json } from "@thegraid/common-lib"
 import { CgMessage, CgType } from "./CgProto.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
-
+export interface LeaveEvent {
+  client_id: number
+  cause?: string
+  group?: string
+}
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {
   interface CgMessage {

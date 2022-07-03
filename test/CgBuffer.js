@@ -104,7 +104,7 @@ function showArray(data, ident='', dmsg) {
     console.log(`\n${ident} Strings = "${stringData(data)}"`)
     let msg2 = CgMessage.deserialize(data)  // TODO: parse inner if CgType == 'send'
     console.log(`${ident} type =`, msg2.msgType, msg2.outObject())
-    console.log(`${ident} ${dmsg} =`, msg2.msgType, msg2[dmsg]) // if there's an embedded message
+    console.log(`${ident} ${dmsg} =`, msg2.msgType, msg2[dmsg])
   } catch (err) { 
     console.log(`${ident} CgMessage = fail: `, err)
   }
@@ -114,17 +114,15 @@ function showHexString(str, deserial) {
 }
 
 // backquote works with literal linefeed:
-function showChromeAry(str) {
-  showArray(cStringTo8Ary(str), 'ChromeAry:')
+function showChromeAry(str, deserial) {
+  showArray(cStringTo8Ary(str), 'ChromeAry:', deserial)
 }
 // Paste console.log output here:
 let str1 = `0: 66\n1: 68\n`;
 //showChromeAry(str1)
 
-showArray([8, 2, 16, 1, 24, 1,
-  32, 1, 42, 7, 116, 101,
-  115, 116, 105, 110, 103], 'cgMsg')
-showHexString(`08 02 20 01 42 11 08 02 10 01 18 01 20 01 2a 07 74 65 73 74 69 6e 67 50 01`,'cgMsg')
+//showHexString(`08 03 10 00 2a 07 72 65 66 65 72 65 65 4a 0d 68 65 78 6c 69 6e 65 3a 67 61 6d 65 31`)
 //showHexString(`08 02 20 01 42 1c 08 01 18 00 22 16 0a 10 70 6c 61 79 65 72 30 2d 52 45 44 2d 44 69 73 74 10 00 20 01`, 'cmMsg')
-//showHexString(`08 01 18 01 20 02 2a 04 6a 6f 69 6e`, 'hgMsg')
+showHexString(`08 01 18 01 20 02 2a 04 6a 6f 69 6e`, 'hgMsg')
 //showHexString(`08 02 20 00 42 2a 08 08 10 01 18 00 22 05 41 6c 69 63 65 52 0e 10 ef 01 18 00 22 07 72 65 66 65 72 65 65 52 0b 10 00 18 01 22 05 41 6c 69 63 65 50 01`, 'hgMsg')
+showArray([8, 8, 24, 0, 50, 5, 65, 108, 105, 99, 101, 82, 14, 16, 0, 24, 239, 1, 34, 7, 114, 101, 102, 101, 114, 101, 101], 'litAry', 'cmMsg')

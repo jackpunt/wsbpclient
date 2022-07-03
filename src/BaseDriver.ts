@@ -257,7 +257,6 @@ export class WebSocketBase<I extends pbMessage, O extends pbMessage>
    * Forward data from WebSocket to upstream driver: 
    * Every message(DataBuf<I>) is an implicit send_send(DataBuf<O>)
    * @param data DataBuf containing \<I extends pbMessage>
-   * @param wrapper [undefined: because 'dnstream' is the raw WebSocket]
    * @override BaseDriver
    */
   override onmessage(data: DataBuf<I>): void {
