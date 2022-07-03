@@ -77,7 +77,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     url?: string,
     onOpen?: (cgClient: GgClient<InnerMessage>) => void) {
     super()
-    //if (!Object.hasOwn(OmC.prototype, 'msgType'))
+    //if (!Object.hasOwn(ImC.prototype, 'msgType'))
     if (!ImC.prototype.hasOwnProperty('msgType')) 
       addEnumTypeString(ImC, GgType) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
     this.ggM = ImC
