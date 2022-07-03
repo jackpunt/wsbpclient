@@ -25,7 +25,7 @@
     "jest1": "npm run maketest; jest --runInBand --force-exit --verbose test/dist/test/*.spec.js Xnomsgs",
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc --esModuleInterop",
-    "clean": "rm -rf lib/*",
+    "clean": "rm -rf lib/*; cp .npmignore lib",
     "build": "npm run clean; npm run make-proto; npm run tsc; date"
   },
   "repository": {
