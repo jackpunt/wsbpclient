@@ -248,8 +248,12 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
       case GgType.join: { this.eval_join(message); break }
       case GgType.undo: { this.eval_undo(message); break }
       case GgType.next: { this.eval_next(message); break }
+      default: {
+        // if subclass does not override, still try to invoke their method!
+        ;(this[`eval_${message.msgType}`] as Function).call(this, message)
+      }
     }
-    // default ACK for everthing:
+    // if not already ACK'd:
     if (!this.message_to_ack.resolved) this.sendCgAck(message.msgType)
   }
 
@@ -343,6 +347,12 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       this.send_roster(pr)  // noting that 'pr' will not appear in roster...
     }
 
+    /** player_id of given client_id (lookup from roster) */
+    player_index(client_id: number) {
+      let rost = this.roster.find(pr => pr.client === client_id)
+      return !!rost ? rost.player : undefined    
+    }
+
     /** GgRefMixin.RefereeBase: message is request to join GAME, assign Player_ID */
     override eval_join(message: InnerMessage) {
       let client = message.client // wrapper.client_from
@@ -381,8 +391,8 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       this.send_roster(pr)
     }
 
-    /** send new player's 'rost' in a 'join' message;
-     * other players will push it on their local 'roster'
+    /** send new player's name, client, player in a 'join' Game message;
+     * - all players update their roster using included roster: Rost[]
      * @pr {name, client, player} of the requester/joiner; 
      */
     send_roster(pr: rost) {

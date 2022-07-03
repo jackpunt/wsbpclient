@@ -116,25 +116,28 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     this.dispatchEvent(ev)
     if (!!this.upstream) this.upstream.onclose(ev)
   };
-  /** Handler for Message Data.
+  /** 
+   * BaseDriver Listener for Message Data.
+   * - logData(data)
    * 
-   * process message from downstream: this.dispatchMessageEvent(data)
+   * _Implicit_ Listener: this.wsmessage(data, wrapper) => this.onmessage(data); 
+   * when: this.dispatchMessageEvent(data); then also this.onmessage(data)
+   * - typically do not register explicit 'message' listener
+   * - typically do not register for 'message' [wrapper] from dnstream
    * 
-   * wsmessage(data) is like an _implicit_ Listener: this.onmessage(ev) => this.wsmessage(ev.data)
-   * anyone that would: this.dispatchMessageEvent(data); will also this.wsmessage(data, wrapper)
-   * typically do not register explicit 'message' listener
-   * typically do not register for 'message' from dnstream (the 'wrapper' message)
-   * 
-   * Probably want to override:  
-   * this.parseEval(this.deserialize(data))
+   * Typically override to:  
+   *  { this.parseEval(this.deserialize(data)) }
    */
   onmessage(data: DataBuf<I>): void {
     this.ll(1) && console.log(stime(this, ` BaseDriver.wsmessage:`), this.logData(data))
   };
   /**
-   * from dnstream: invoke this.dispatchMessageEvent(data)
+   * BaseDriver hander for (data: DataBuf<I>) from dnstream.
+   * - save this.wrapper = wrapper [may be undefined]
+   * - invoke this.dispatchMessageEvent(data)
+   * - invoke this.onmessage(data)
    * @param data DataBuf\<I> from the up-coming event
-   * @param wrapper the encapsulating pbMessage from dnstream; when wrapper = send(msg<I>)
+   * @param wrapper the encapsulating pbMessage, if dnstream.send(wrapper.msg\<I>)
    */
   wsmessage(data: DataBuf<I>, wrapper?: pbMessage): void {
     this.wrapper = wrapper
@@ -173,7 +176,8 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     //throw new Error(`Method not implemented: deserialize(${data})`);
   }
 
-  /** Execute the semantic actions of the pbMessage: I
+  /** 
+   * BaseDriver: Execute the semantic actions of the pbMessage: I
    * 
    * typically: this[\`eval_${message.msgType}\`].call(this, message, ...args)
    * @param message from deserialized DataBuf\<I\> (from dnstream)

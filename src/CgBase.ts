@@ -335,15 +335,6 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return promise
   }
 
-  /** 
-   * Nak from referee indicates that message was semantically illegal.
-   * Referee never[?] initiates a request message; can Nak a request; 
-   * (not clear if CgClient needs this...)
-   */
-  isFromReferee(message: CgMessage): boolean {
-    return (message.client_from === 0)
-  }
-
   /**
    * parse CgType: eval_ each of ack, nak, join, leave, send, none.
    * @param message 
