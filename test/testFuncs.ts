@@ -1,10 +1,11 @@
 import { stime } from "@thegraid/common-lib"
 import { execSync } from "child_process"
 import type { AWebSocket, CgBase, CgMessage, pbMessage, WebSocketBase } from "../src/index.js"
-import { AnyWSD, CgClient, close_normal, wsWebSocketBase } from '../src/index.js'
+import { AnyWSD, CgClient, close_normal } from '../src/index.js'
+import { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 
-import { WebSocket as ws$WebSocket } from "ws"
 import type net from 'net'
+import { WebSocket as ws$WebSocket } from "ws"
 //net.Socket
 export function wssPort(wsb: wsWebSocketBase<pbMessage, pbMessage>, def: number = undefined) {
   let wss = wsb.ws['wss']

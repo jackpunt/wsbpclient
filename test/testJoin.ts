@@ -1,5 +1,6 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
-import { CgClient, CgMessage, CgType, pbMessage, readyState, WebSocketBase, wsWebSocketBase } from '../src/index.js'
+import { CgClient, CgMessage, CgType, pbMessage, readyState, WebSocketBase } from '../src/index.js'
+import type { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 import { addListeners, closeStream, listTCPsockets, makeCgClient, wssPort } from './testFuncs.js'
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6

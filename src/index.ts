@@ -5,6 +5,4 @@ export * from './CgClient.js'
 export * from './CgProto.js'
 export * from './GgClient.js'
 export * from './types.js'
-export * from './wsWebSocket.js'
-export * from './wsWebSocketBase.js'
 
