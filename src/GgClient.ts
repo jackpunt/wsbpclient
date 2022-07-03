@@ -16,12 +16,11 @@ function stringData(data: DataBuf<any>) {
 /** Generic Game message: join (client_id, player, name, roster), next, undo, chat(inform)... */
 export interface GgMessage extends pbMessage { 
   type: GgType | any; // any compatible enum...
-  client_from: number;// pseudo field set by wsmesssage: wrapper.client_from
   client: number;     // ref sets { client, player, name }
   player: number;     // player serial #; large values indicate observer or referee (237)
   name: string;       // player name (provide when joining, must be unique w/in the Group)
-  clientto: number;   // used by referee (mostly)
   roster: Rost[];     // { client, player, name }
+  client_to: number;  // from CgMessage wrapper.client_id  [referee checks on join]
   /** type as a string (vs enum value) */
   get msgType(): string // typically injected by addEnumTypeString(IoC extends GgMessage)
 }
@@ -235,8 +234,8 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.ll(1) && console.log(stime(this, `.onmessage: data = `), { data })
     //this.dispatchMessageEvent(data)     // inform listeners
     let message = this.deserialize(data)
-    message.client_from = wrapper.client_from // message is from: client_from
-    message.clientto = wrapper.client_id // capture the client_to field
+    message.client = wrapper.client_from // message is from: wrapper.client_from
+    message.client_to = wrapper.client_id // capture the client_id field
     this.ll(1) && console.log(stime(this, ".wsmessage:"), message.msgType, message)
     this.parseEval(message)
   }
@@ -351,7 +350,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       let client = message.client // wrapper.client_from
       let name = message.name, pr: rost
       this.ll(1) && console.log(stime(this, ".eval_join"), name, message, this.roster)
-      if (message.clientto !== 0) {
+      if (message.client_to !== 0) {
         this.sendCgNak("send join to ref only", { client_id: client });
         return;
       }
