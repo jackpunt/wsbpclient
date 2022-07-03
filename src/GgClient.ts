@@ -64,8 +64,8 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
   /**
    * Create a web socket stack
    * @param ImC InnerMessage class/constructor(opts); With: ImC.deserialize(DataBuf) -> InnerMessage
-   * @param CgB CgBase constructor
-   * @param WSB WebSocketBase constructor
+   * @param CgB CgBase constructor [if url supplied for connectStack]
+   * @param WSB WebSocketBase constructor [if url supplied for connectStack]
    * @param url web socket URL
    * @param onOpen callback when webSocket is open: onOpen(this) => void
    */
@@ -170,7 +170,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
   {
     let omDriver: GgClient<InnerMessage> = this
     let cgBase = new CgB()
-    let wsb: WebSocketBase<pbMessage, CgMessage> = new WSB()
+    let wsb = new WSB()
     omDriver.cgBase = cgBase
     omDriver.wsbase = wsb
     omDriver.connectDnStream(cgBase)
@@ -232,7 +232,6 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     let wrapper = this.wrapper as CgMessage
     this.message_to_ack = new AckPromise(wrapper)
     this.ll(1) && console.log(stime(this, `.onmessage: data = `), { data })
-    //this.dispatchMessageEvent(data)     // inform listeners
     let message = this.deserialize(data)
     message.client = wrapper.client_from // message is from: wrapper.client_from
     message.client_to = wrapper.client_id // capture the client_id field
