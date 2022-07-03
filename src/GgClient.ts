@@ -80,7 +80,6 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     //if (!Object.hasOwn(OmC.prototype, 'msgType'))
     if (!ImC.prototype.hasOwnProperty('msgType')) 
       addEnumTypeString(ImC, GgType) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
-      //ggaddEnumTypeString(ImC) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
     this.ggM = ImC
     let deserial = ImC['deserialize'] as ((buf: DataBuf<InnerMessage>) => InnerMessage)
     let deserial0 = (buf: DataBuf<CgMessage>) => {
