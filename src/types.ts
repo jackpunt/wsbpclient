@@ -1,5 +1,5 @@
 import type * as jspb from 'google-protobuf';
-export { className, stime } from '@thegraid/common-lib'; // not @thegraid/common-lib because createjs
+export { className, stime } from '@thegraid/common-lib';
 export { EzPromise } from '@thegraid/ezpromise';
 
 export interface pbMessage extends jspb.Message {}

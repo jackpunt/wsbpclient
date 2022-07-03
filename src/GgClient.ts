@@ -1,5 +1,5 @@
-import { WebSocketBase, pbMessage, CgMessage, AckPromise, CgBase, CgMessageOpts, CgType, stime, BaseDriver, DataBuf, EzPromise, className, addEnumTypeString, LeaveEvent } from "./index.js";
 import { GgType, Rost } from "./GgProto.js";
+import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -295,20 +295,24 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
   }
 }
 
-// GgClient is 'HgClient' or 'CmClient'; so HgRef = new Referee(HgClient)
+/** 
+ * Add GgReferee functionality to a GgClient<GgMessage> (expect a dnstream CgBase Driver) 
+ * 
+ * Eg: class HgReferee extends GgRefMixin<HgMessage, HgClient>(HgClient) {}
+ */
 export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
   return class RefereeBase extends Base {
-    get stage() { return {}} // a stage with no canvas, so stime.anno will show " R" for all log(this)
-    isRefereeBase = true     // Also: className == 'RefereeBase'
+    get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
+    /** GgRefMixin.RefereeBase() */
     constructor(...args: any[]) { 
       super(undefined) 
       return
     }
     /**
-     * Connect GgReferee to given URL.
+     * Connect GgRefMixin to given URL.
      * @param onOpen inform caller that CG connection Stack is open
      * @param onJoin inform caller that GgReferee has joined CG
-     * @returns the GgReferee (like the constructor...)
+     * @returns the GgRefMixin (like the constructor...)
      */
     joinGroup(url: string, group: string, onOpen: (ggClient: GgClient<InnerMessage>) => void, onJoin?: (ack: CgMessage) => void): typeof this {
       // Stack: GgClient=this=GgReferee; CgClient=RefGgBase; WebSocketBase -> url
@@ -326,11 +330,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       return this
     }
 
-    /** special [old] invocation from GgRefBase: somebody wants to leave the Group
-     * so we first 'leave' them from the Game.
-     */
-    eval_leave(msg: CgMessage) { this.client_leave(msg) } // Note: CgMessage implements LeaveEvent!
-
+    /** listener for LeaveEvent, from dnstream: CgReferee */
     client_leave(event: Event | LeaveEvent) {
       this.ll(2) && console.log(stime(this, ".eval_leave:"), event)
       let { client_id, cause, group } = event as LeaveEvent
@@ -343,7 +343,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       this.send_roster(pr)  // noting that 'pr' will not appear in roster...
     }
 
-    /** CgReferee: message is request to join GAME, assign Player_ID */
+    /** GgRefMixin.RefereeBase: message is request to join GAME, assign Player_ID */
     override eval_join(message: InnerMessage) {
       let client = message.client // wrapper.client_from
       let name = message.name, pr: rost
