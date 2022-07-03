@@ -1,8 +1,12 @@
+import { json } from "@thegraid/common-lib";
 import { BaseDriver } from "./BaseDriver.js";
-import { json } from "@thegraid/common-lib"
 import { CgMessage, CgType } from "./CgProto.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
-
+export interface LeaveEvent {
+  client_id: number
+  cause?: string
+  group?: string
+}
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 declare module './CgProto' {
   interface CgMessage {
@@ -399,9 +403,17 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return
   }
 
-  /** informed that [other] Client has departed Group; or tell Ref: I'm leaving. */
+  /**
+   * CgServer sends 'leave' msg when [other] Client has departed Group; 
+   * [maybe forwarding msg from Client (to ref/group) saying: I'm leaving Group (without socket close)]
+   * 
+   * OR to tell Ref: you can leave now (Group is empty)
+   * OR to tell Client: you must leave now (Kicked)
+   */
   eval_leave(message: CgMessage): void {
     this.ll(1) && console.log(stime(this, ".eval_leave:"), { msgObj: message.msgObject(true) })
+    // upstream Referee may be listening:
+    this.dispatchEvent(this.newLeaveEvent(message.client_id, this.group_name, message.cause))
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (message.client_id === this.client_id) {
       // *I've* been booted from Group! (or I'm the ref[0] and everyone else has gone)
@@ -412,6 +424,14 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       this.sendAck(className(this)+`.eval_leave(${message.client_id})`)  // some other client has left the group...
     }
     return
+  }
+  newLeaveEvent(client_id: number, group?: string, cause?: string) {
+    let ev = new Event('leave'), evt = ev as unknown as LeaveEvent
+    // Tack on private attributes:
+    evt.client_id = client_id
+    evt.group = group
+    evt.cause = cause
+    return ev
   }
 
   /**

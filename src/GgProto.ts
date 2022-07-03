@@ -4,6 +4,13 @@
  * source: GgProto.proto
  * git: https://github.com/thesayyn/protoc-gen-ts */
 import * as pb_1 from "google-protobuf";
+export enum GgType {
+    none = 0,
+    next = 6,
+    undo = 7,
+    join = 8,
+    chat = 9
+}
 export class Rost extends pb_1.Message {
     constructor(data?: any[] | {
         client?: number;
