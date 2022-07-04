@@ -309,7 +309,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
     get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
     /** GgRefMixin.RefereeBase() */
     constructor(...args: any[]) { 
-      super(undefined) 
+      super(...args) 
       return
     }
     /**
