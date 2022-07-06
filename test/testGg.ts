@@ -63,21 +63,20 @@ function openAndClose(logMsg = '') {
     ggRef.connectStack(testurl) // wsbase.connectWebSocket(testurl); wsbase.ws.addEL(onOpen)
   }
 
-  let makeGgMessage = (cgc: CgClient<GgMessage>, msgOpts: GgMessageOpts) => {
+  let makeGgMessage = (cgc: CgClient<GgMessage>, type: GgType, msgOpts: GgMessageOpts) => {
     msgOpts.client_from = cgc.client_id // client_id if join'd as member of a ClientGroup
-    return new GgMessage(msgOpts)
+    return new GgMessage({ type, ...msgOpts })
   }
 
   let ggSend = async (cgc: CgClient<GgMessage>, info = 'ggSend') => {
-    let msg = makeGgMessage(cgc, {
-      type: GgType.chat,
+    let msg = makeGgMessage(cgc, GgType.chat, {
       client: cgc.client_id,
       inform: info
     })
     return cgc.send_send(msg, { nocc: true })
   }
   let joinGame = (ggc: GgClient<GgMessage>, cgc: CgClient<GgMessage>) => {
-    let joinMsg = makeGgMessage(cgc, {type: 'join', name: `test${clientN}`})
+    let joinMsg = makeGgMessage(cgc, GgType.join, {name: `test${clientN}`})
     return ggc.sendAndReceive(() => ggc.send_message(joinMsg, {client_id: 0}), (msg) => msg.type == GgType.join)
   }
   let clientRun = async (ggc: GgClient<GgMessage>, cgc: CgClient<GgMessage>) => {

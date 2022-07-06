@@ -6,7 +6,7 @@ import { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 
 import type net from 'net'
 import { WebSocket as ws$WebSocket } from "ws"
-import { GgMessage } from "./GgProto.js"
+import { GgMessage } from "../src/GgProto.js"
 //net.Socket
 export function wssPort(wsb: wsWebSocketBase<pbMessage, pbMessage>, def: number = undefined) {
   let wss = wsb.ws['wss']
@@ -62,7 +62,7 @@ export function makeCgClient<C extends CgBase<CgMessage>>
   return { wsbase, cgclient }
 }
 export function makeGgClient(url: string, listeners: Listeners2 = {}) {
-  let ggclient = new GgClient(GgMessage, CgBase, WebSocketBase, url, listeners.open)
+  let ggclient = new GgClient(GgMessage, CgBase, wsWebSocketBase, url, listeners.open)
   let cgbase = ggclient.dnstream as CgBase<GgMessage>
   let wsbase = cgbase.dnstream as wsWebSocketBase<pbMessage, CgMessage>
   return { ggclient, cgbase, wsbase }

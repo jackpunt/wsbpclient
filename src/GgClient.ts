@@ -148,10 +148,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
    * @param onOpen invoked when GgClient/CgBase/WSB connection to server/URL is Open.
    * @returns this GgClient
    */
-  connectStack(
-    url: string,
-    onOpen?: (ggClient: GgClient<InnerMessage>) => void): this 
-  {
+  connectStack(url: string, onOpen?: (ggClient: GgClient<InnerMessage>) => void): this  {
     if (!this.cgBase)
       this.cgBase = (this.dnstream || this.connectDnStream(new this.CgB()).dnstream) as CgBase<InnerMessage> 
     if (!this.wsbase)
