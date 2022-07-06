@@ -177,7 +177,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
       if (pred(ggm)) {
         this.ll(1) && console.log(stime(this, ".listenForGgReply: fulfill="), ggm)
         this.removeEventListener('message', listenForGgReply)
-        ggPromise.fulfill(ggm)
+        ggPromise.fulfill(ggm) // if ack.success && pred(ggm) ??
       }
     }
     let ggPromise = new EzPromise<InnerMessage>()

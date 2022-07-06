@@ -2,7 +2,7 @@ import { CgBase } from './CgBase.js';
 import type { pbMessage } from './types.js';
 
 /** 
- * A WebSocketDriver for CgProto (client-group.proto)
+ * A CgBaseDriver for CgProto (client-group.proto)
  * 
  * Example usage:
  * 
