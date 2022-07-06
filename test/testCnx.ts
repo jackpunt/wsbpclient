@@ -22,7 +22,7 @@ function openAndClose(logMsg='') {
         closeStream(wsb, `${logMsg} after wsb open timeout`)
       }, 10)
     },
-    close: (ev: CloseEvent) => {
+    close: (ev: any) => {
       let { type, wasClean, reason, code } = ev
       console.log(stime(), "wsb CLOSED:", { type, wasClean, reason, code }, readyState(wsb.ws))
     }

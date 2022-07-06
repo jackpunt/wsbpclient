@@ -415,7 +415,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   /**
    * Process message delivered to Client-Group.
    * 
-   * For CgServerCnx: override to sendToGroup()
+   * For CgServerDriver: override to sendToGroup()
    * else Server would parseEval on behalf of the client...?
    * 
    * For CgClient: forward inner message to upstream protocol handler,
@@ -425,7 +425,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   eval_send(message: CgMessage): void {
     if (this.upstream) {
-      this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as CgBase<O>).deserialize(message.msg))
+      this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as BaseDriver<O,pbMessage>).deserialize(message.msg))
       this.upstream.wsmessage(message.msg, message) // -> upstream.wsmessage(msg)
     } else {
       this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())

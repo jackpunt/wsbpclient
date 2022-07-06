@@ -17,6 +17,7 @@
     "protots2": "protoc -I src/proto --ts_out=src src/proto/GgProto.proto",
     "testCnx": "node test/dist/test/testCnx.js",
     "testJoin": "node test/dist/test/testJoin.js",
+    "testRef": "node test/dist/test/testRef.js",
     "testdet": "jest --runInBand --force-exit --verbose --detectOpenHandles CgServer.spec.ts",
     "test": "jest --runInBand  --verbose spec.ts",
     "maketest": "rm -rf test/dist/*; tsc -p test",

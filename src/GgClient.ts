@@ -38,14 +38,12 @@ export type GgMessageOpts = Partial<Pick<GgMessage, GGMK>>
 // InnerMessage: send_join(name, opts), eval_join(Rost), send_message->send_send, undo?, chat?, param?
 // inject a deserializer!
 // We extend BaseDriver with the GenericGame proto driver/client, using these methods to talk to CgBase
-/** Driver that speaks Generic Game proto above CgClient: players join, take turns, undo... */
-export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessage, never> {
+/** Driver that speaks Generic Game proto above CgBase<GgMessage>: players join, take turns, undo... */
+export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessage, pbMessage> {
   wsbase: WebSocketBase<pbMessage, pbMessage>;
   cgBase: CgBase<InnerMessage>; // === this.dnstream
   /** Constructor<InnerMessage>(DataBuf) */
   declare deserialize: (buf: DataBuf<InnerMessage>) => InnerMessage
-  /** Constructor<InnerMessage>(opts) [ImC] */
-  ggM: new (opts: any) => InnerMessage
 
   maxPlayers: number = 4;
   player_id: number;
@@ -55,36 +53,35 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
 
   /**
    * Create a web socket stack
-   * @param ImC InnerMessage class/constructor(opts); With: ImC.deserialize(DataBuf) -> InnerMessage
-   * @param CgB CgBase constructor [if url supplied for connectStack]
+   * @param ImC constructor<InnerMessage>(opts); With: ImC.deserialize(DataBuf) -> InnerMessage
+   * @param CgB CgBase<InnerMessage> constructor [if url supplied for connectStack]
    * @param WSB WebSocketBase constructor [if url supplied for connectStack]
-   * @param url web socket URL
-   * @param onOpen callback when webSocket is open: onOpen(this) => void
+   * @param url web socket URL - if provided: connect wsbase(url).then(onOpen(ggClient))
+   * @param onOpen callback when WebSocket is open: onOpen(this) => void
    */
   constructor(
     //OmD: (buf: DataBuf<InnerMessage>) => InnerMessage,
-    ImC: new (opts: any) => InnerMessage,
-    CgB: new () => CgBase<InnerMessage> = CgBase,
-    WSB: new () => WebSocketBase<pbMessage, CgMessage> = WebSocketBase,
+    public ImC: new (opts: any) => InnerMessage,
+    public CgB: new () => CgBase<InnerMessage> = CgBase,
+    public WSB: new () => WebSocketBase<pbMessage, CgMessage> = WebSocketBase,
     url?: string,
-    onOpen?: (cgClient: GgClient<InnerMessage>) => void) {
+    onOpen?: (ggClient: GgClient<InnerMessage>) => void) {
     super()
     //if (!Object.hasOwn(ImC.prototype, 'msgType'))
     if (!ImC.prototype.hasOwnProperty('msgType')) 
       addEnumTypeString(ImC, GgType) // Failsafe: msg.msgType => enum{none = 0}(msg.type)
-    this.ggM = ImC
     let deserial = ImC['deserialize'] as ((buf: DataBuf<InnerMessage>) => InnerMessage)
-    let deserial0 = (buf: DataBuf<CgMessage>) => {
+    let deserialCatch = (buf: DataBuf<CgMessage>) => {
       try {
         //console.log(stime(this, `.deserialize buf =`), buf)
         return deserial(buf)
       } catch (err) {
-        console.error(stime(this, `.deserialize: failed`), stringData(buf), buf, err)
+        this.ll(0) && console.error(stime(this, `.deserialize: failed`), stringData(buf), buf, err)
         return undefined // not a useful InnerMessage
       }
     }
-    this.deserialize = deserial0
-    url && this.connectStack(CgB, WSB, url, onOpen)
+    this.deserialize = deserialCatch
+    this.connectStack(url, onOpen)
   }
 
   get isOpen() { return !!this.wsbase && this.wsbase.ws && this.wsbase.ws.readyState == this.wsbase.ws.OPEN }
@@ -146,28 +143,24 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     return this.ack_promise
   }
   /**
-   * wire-up this CgDriver to a CgClient and WebSocketBase to the given URL 
-   * @param CgB a CgClient Class/constructor
-   * @param WSB a WebSocketBase Class/constructor
+   * wire-up this GgClient to a CgBase and WebSocketBase to the given URL 
    * @param url string URL to the target CgServer server
-   * @param onOpen invoked when CgB<InMessage>/CgClient/WSB connection to server/URL is Open.
-   * @returns this CgDriver
+   * @param onOpen invoked when GgClient/CgBase/WSB connection to server/URL is Open.
+   * @returns this GgClient
    */
   connectStack(
-    CgB: new () => CgBase<InnerMessage>,
-    WSB: new () => WebSocketBase<pbMessage, CgMessage>,
     url: string,
-    onOpen?: (omDriver: GgClient<InnerMessage>) => void): this 
+    onOpen?: (ggClient: GgClient<InnerMessage>) => void): this 
   {
-    let omDriver: GgClient<InnerMessage> = this
-    let cgBase = new CgB()
-    let wsb = new WSB()
-    omDriver.cgBase = cgBase
-    omDriver.wsbase = wsb
-    omDriver.connectDnStream(cgBase)
-    cgBase.connectDnStream(wsb)
-    wsb.connectDnStream(url)
-    wsb.ws.addEventListener('open', (ev) => onOpen(omDriver))
+    if (!this.cgBase)
+      this.cgBase = (this.dnstream || this.connectDnStream(new this.CgB()).dnstream) as CgBase<InnerMessage> 
+    if (!this.wsbase)
+      this.wsbase = (this.cgBase.dnstream || this.cgBase.connectDnStream(new this.WSB()).dnstream) as WebSocketBase<pbMessage, CgMessage>
+    if (url) {
+      let ggClient = this
+      this.wsbase.connectDnStream(url)
+      onOpen && this.wsbase.ws.addEventListener('open', (ev) => onOpen(ggClient))
+    }
     return this
   }
 
@@ -200,7 +193,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
   }
   /** make a Game-specific 'join' message... */
   make_join(name: string, opts: GgMessageOpts = {}): InnerMessage {
-    return new this.ggM({ ...opts, client_from: this.client_id, name: name, type: GgType.join }) // include other required args
+    return new this.ImC({ ...opts, client_from: this.client_id, name: name, type: GgType.join }) // include other required args
   } 
   /** send Join request to referee.
    * 
@@ -224,6 +217,12 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.message_to_ack = new AckPromise(wrapper)
     this.ll(1) && console.log(stime(this, `.onmessage: data = `), { data })
     let message = this.deserialize(data)
+    if (!message) {
+      console.warn(stime(this, `.onmessage: ignore message from wrapper`), wrapper)
+      let opts: GGMK = undefined
+      this.sendCgNak('message invalid', { info: wrapper.msgType })
+      return
+    }
     message.client = wrapper.client_from // message is from: wrapper.client_from
     message.client_to = wrapper.client_id // capture the client_id field
     this.ll(1) && console.log(stime(this, ".wsmessage:"), message.msgType, message)
@@ -314,8 +313,8 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
      * @returns the GgRefMixin (like the constructor...)
      */
     joinGroup(url: string, group: string, onOpen: (ggClient: GgClient<InnerMessage>) => void, onJoin?: (ack: CgMessage) => void): typeof this {
-      // Stack: GgClient=this=GgReferee; CgClient=RefGgBase; WebSocketBase -> url
-      this.connectStack(CgBase, WebSocketBase, url, (refClient: GgClient<InnerMessage>) => {
+      // Stack: GgClient=this=GgReferee; CgBase=RefGgBase; WebSocketBase -> url
+      this.connectStack(url, (refClient: GgClient<InnerMessage>) => {
         onOpen(refClient)
         refClient.cgBase.send_join(group, 0, "referee").then((ack: CgMessage) => {
           this.ll(1) && console.log(stime(this, `.joinGroup: ack =`), ack)
