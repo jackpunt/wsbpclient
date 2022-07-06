@@ -331,7 +331,10 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   send_leave(group: string, client_id?: number, cause?: string): AckPromise {
     let message = this.makeCgMessage({ type: CgType.leave, group, client_id, cause })
     let promise = this.sendToSocket(message)
-    promise.then((ack) => { this.on_leave(ack.cause) }, (nak) => {})
+    promise.then((ack) => { this.on_leave(ack.cause) }, 
+      (nak) => {
+        console.log(stime(this, `.send_leave: Promise rejected('${nak}')`), {group, client_id, cause})
+      })
     return promise
   }
 
@@ -394,7 +397,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     return
   }
 
-  /** informed that [other] Client has departed Group; or tell Ref: I'm leaving. */
+  /** CgBase informed (by CgServerDriver) that [other] Client has departed Group; OR I've been booted by Ref. */
   eval_leave(message: CgMessage): void {
     this.ll(1) && console.log(stime(this, ".eval_leave:"), { msgObj: message.msgObject(true) })
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.

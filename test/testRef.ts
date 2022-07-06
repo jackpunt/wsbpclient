@@ -1,6 +1,7 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
-import { CgClient, CgMessage, CgType, pbMessage, readyState, WebSocketBase } from '../src/index.js'
-import type { wsWebSocketBase } from '../src/wsWebSocketBase.js'
+import { addEnumTypeString, BaseDriver, CgBase, CgClient, CgMessage, CgType, GgClient, GgRefMixin, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
+import { wsWebSocketBase } from '../src/wsWebSocketBase.js'
+import { GgMessage, GgType } from "./GgProto.js"
 import { addListeners, closeStream, listTCPsockets, makeCgClient, wssPort } from './testFuncs.js'
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
@@ -13,6 +14,17 @@ const echoserver: boolean = (testurl == echourl) // if echoserver, don't expect 
 console.log(stime(this, `Connect to testurl = ${AT.ansiText(['green'],testurl)}`))
 const group_name = 'testGroup'
 
+declare module '../src/GgProto' {
+  interface GgMessage {
+    msgType: string
+    client_from: number // GgReferee expects GgMessage to have a slot for client_from
+  }
+}
+addEnumTypeString(GgMessage, GgType)
+
+class TestGgRef extends GgRefMixin<GgMessage, typeof GgClient<GgMessage>>(GgClient) {
+
+}
 function openAndClose(logMsg = '') {
   let clientN = 0
   const errorwsb = (wsb, logmsg=logMsg) => {
@@ -32,14 +44,23 @@ function openAndClose(logMsg = '') {
     setTimeout(() => closeStream(wsb, `${logmsg}.waitClose(${wait}, ${port}) `), wait, closer)
   }
   let refJoin = (onRef: (wsbase, cgclient) => void) => {
-    let { wsbase, cgclient } = makeCgClient(testurl)
-    addListeners(cgclient, {
-      error: errorwsb(wsbase), close: closewsb(wsbase, 'ref'), open: async (ev) => {
+    let ggRef = new TestGgRef(GgMessage, CgBase, wsWebSocketBase<pbMessage, CgMessage>)
+    let cgclient = ggRef.dnstream as CgBase<GgMessage>
+    let wsbase = cgclient.dnstream as wsWebSocketBase<pbMessage, CgMessage>
+    let cgl = {
+      error: errorwsb(wsbase), 
+      close: closewsb(wsbase, 'ref'),
+      open: async (ev) => {
         console.log(stime('refJoin', `.open: wssPort=`), wssPort(wsbase))
         await cgclient.send_join(group_name, 0, 'referee')
         onRef(wsbase, cgclient)
+      }, 
+      leave: (ev) => {
+        this.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
       }
-    })
+    }
+    addListeners(cgclient, cgl)
+    wsbase.connectWebSocket(testurl)
   }
 
   let cgSend = async (cgc: CgClient<CgMessage>, info='fakeSend') => {

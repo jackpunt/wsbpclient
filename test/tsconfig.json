@@ -1,16 +1,11 @@
 {
   "extends": "../tsconfig.json",
-  "files": [
-    "CgServer.spec.ts",
-    "CgMessage.spec.ts",
-    "testJoin.ts",
-    "testCnx.ts"
-  ],
   "include": [
-    "test/*.ts"
+    "./test*.ts"
   ],
   "compilerOptions": {
     //"composite": true,
+    "declaration": false,
     "sourceMap": false,
     "outDir": "./dist",
     "rootDirs": [".", "../src"]

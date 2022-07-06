@@ -1,4 +1,4 @@
-import { GgType, Rost } from "./GgProto.js";
+import { GgMessage as GgMessage0, GgType, Rost } from "./GgProto.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
@@ -13,30 +13,22 @@ function stringData(data: DataBuf<any>) {
   return String.fromCharCode(...k)
 }
 
-/** Generic Game message: join (client_id, player, name, roster), next, undo, chat(inform)... */
-export interface GgMessage extends pbMessage { 
-  type: GgType | any; // any compatible enum...
-  client: number;     // ref sets { client, player, name }
-  player: number;     // player serial #; large values indicate observer or referee (237)
+/** Generic Game message: join (client_id, player, name, roster), next, undo, chat(name, inform)... 
+ */
+export interface GgMessage extends GgMessage0 { 
+  type: GgType | any; // message_id: number from compatible enum...
+  client: number;     // client_id: from ClientGroup; ref sets { client, player, name }
+  player: number;     // player_id: serial #; large values indicate observer or referee (237)
   name: string;       // player name (provide when joining, must be unique w/in the Group)
-  roster: Rost[];     // { client, player, name }
-  client_to: number;  // from CgMessage wrapper.client_id  [referee checks on join]
+  roster: Rost[];     // { client: client_id, player: player_id, name: name }
+  client_to: number;  // from CgMessage: wrapper.client_id  [referee checks on join]
   /** type as a string (vs enum value) */
-  get msgType(): string // typically injected by addEnumTypeString(IoC extends GgMessage)
+  get msgType(): string // typically injected into pbMessage<Ioc extends GgMessage>
+  // declare module "src/IoCproto" { interface IoC { msgType: string }}; addEnumTypeString(IoC)
 }
 
-// declare module '../proto/GgProto' {
-//   interface GgMessage { msgType: string }
-// }
-/** augment proto with accessor 'msgType => string' */
-function ggaddEnumTypeString(msgClass: { prototype: object }, anEnum: any = GgType, accessor = 'msgType') {
-  Object.defineProperty(msgClass.prototype, accessor, {
-    /** GgMessage.type as a string. */
-    get: function () { return anEnum[this.type] }
-  })
-}
-
-export type rost = {name: string, client: number, player: number}
+/** GgMessage.Rost as object: */
+export type rost = { name: string, client: number, player: number }
 type GGMK = Exclude<keyof GgMessage, Partial<keyof pbMessage> | "serialize">
 export type GgMessageOpts = Partial<Pick<GgMessage, GGMK>>
 
@@ -254,7 +246,10 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
       }
     }
     // if not already ACK'd:
-    if (!this.message_to_ack.resolved) this.sendCgAck(message.msgType)
+    if (!this.message_to_ack.resolved) {
+      this.ll(1) && console.log(stime(this, `.parseEval: sendCgAck('${message.msgType}') for message`), message)
+      this.sendCgAck(message.msgType)
+    }
   }
 
   /**
@@ -274,16 +269,16 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     // convert pb 'Rost' into js 'rost'
     this.roster = roster.map(rost => { let { player, client, name } = rost; return { player, client, name }})
   }
-  /** CgClient: when [this or other] client joins Game: update roster */
+  /** GgClient: when [this or other] client joins/leaves Game: update roster */
   eval_join(message: GgMessage) {
-    this.ll(1) && console.log(stime(this, ".eval_join:"), message)
+    this.ll(1) && console.log(stime(this, ".eval_joinGame:"), message)
     if (this.client_id === message.client) {
       this.player_id = message.player
       this.player_name = message.name
     }
     this.updateRoster(message.roster)
-    this.ll(1) && console.log(stime(this, ".eval_join: roster"), this.roster)
-    this.sendCgAck("join")
+    this.ll(1) && console.log(stime(this, ".eval_joinGame: roster"), this.roster)
+    this.sendCgAck("joinGame")
   }
   /** invoke table.undo */
   eval_undo(message: GgMessage) {
@@ -336,15 +331,15 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
 
     /** listener for LeaveEvent, from dnstream: CgReferee */
     client_leave(event: Event | LeaveEvent) {
-      this.ll(2) && console.log(stime(this, ".eval_leave:"), event)
+      this.ll(2) && console.log(stime(this, ".client_leave:"), event)
       let { client_id, cause, group } = event as LeaveEvent
       let rindex = this.roster.findIndex(pr => pr.client === client_id)
       let pr: rost = this.roster[rindex]
       // remove from roster, so they can join again! [or maybe just nullify rost.name?]
       if (rindex >= 0) this.roster.splice(rindex, 1)
-      this.ll(1) && console.log(stime(this, `.eval_leave: ${group}; roster =`), this.roster.concat())
-      // QQQQ: should we tell the other players? send_join(roster)
-      this.send_roster(pr)  // noting that 'pr' will not appear in roster...
+      this.ll(1) && console.log(stime(this, `.client_leave: ${group}; roster =`), this.roster.concat())
+      // tell the other players: send_join(roster)
+      this.send_roster(pr, 'leaveGame')  // noting that 'pr' will not appear in roster...
     }
 
     /** player_id of given client_id (lookup from roster) */
@@ -357,9 +352,9 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
     override eval_join(message: InnerMessage) {
       let client = message.client // wrapper.client_from
       let name = message.name, pr: rost
-      this.ll(1) && console.log(stime(this, ".eval_join"), name, message, this.roster)
+      this.ll(1) && console.log(stime(this, ".eval_joinGame"), name, message, this.roster.concat())
       if (message.client_to !== 0) {
-        this.sendCgNak("send join to ref only", { client_id: client });
+        this.sendCgNak("send joinGame to ref only", { client_id: client });
         return;
       }
       if (pr = this.roster.find(pr => (pr.name === message.name))) {
@@ -382,7 +377,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       // add client/player/name to roster:
       pr = { client, player, name };
       this.roster.push(pr)
-      this.ll(1) && console.log(stime(this, ".eval_join: roster"), this.roster)
+      this.ll(1) && console.log(stime(this, ".eval_join: roster"), this.roster.concat())
       // send Ack to the client, completing the 'join' transaction
       this.sendCgAck("joined", { client_id: client }) // ... not an ACK to tell Server to sendToOthers...
       this.ll(1) && console.log(stime(this, ".eval_join: assign player"), pr)
@@ -391,21 +386,22 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       this.send_roster(pr)
     }
 
-    /** send new player's name, client, player in a 'join' Game message;
+    /** send new/departed player's name, client, player in a 'join' Game message;
      * - all players update their roster using included roster: Rost[]
      * @pr {name, client, player} of the requester/joiner; 
+     * @param info CgMessageOpts = { info }
      */
-    send_roster(pr: rost) {
+    send_roster(pr: rost, info = 'joinGame') {
       let { name, client, player } = pr
       let active = this.roster.filter(pr => pr.client != undefined)
       let roster = active.map(pr => new Rost(pr))
-      this.send_join(name, { client, player, roster }) // fromReferee to Group.
+      this.send_join(name, { client, player, roster }, { info }) // fromReferee to Group.
     }
     /** send join with roster to everyone. */
-    override send_join(name: string, opts: GgMessageOpts = {}): AckPromise {
+    override send_join(name: string, opts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
       let message = this.make_join(name, opts)
-      this.ll(1) && console.log(stime(this, ".send_join"), message)
-      return this.send_message(message, { nocc: true }) // from Referee
+      this.ll(1) && console.log(stime(this, ".send_joinGame"), message)
+      return this.send_message(message, { nocc: true, ...cgOpts }) // from Referee
     }
   }
 }

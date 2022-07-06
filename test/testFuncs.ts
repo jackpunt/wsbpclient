@@ -29,7 +29,13 @@ export function listTCPsockets(ident = '.listTCPsockets', pid = `${process.pid}`
 
 //export type WSDriver = (new () => AnyWSD)
 export type Driver = (new () => AnyWSD)
-type Listeners = { open?: EventListenerOrEventListenerObject, close?: EventListenerOrEventListenerObject, error?: EventListenerOrEventListenerObject, message?: EventListenerOrEventListenerObject }
+type Listeners = { 
+  open?: EventListenerOrEventListenerObject, 
+  close?: EventListenerOrEventListenerObject, 
+  error?: EventListenerOrEventListenerObject, 
+  message?: EventListenerOrEventListenerObject,
+  leave?: EventListenerOrEventListenerObject,
+}
 
 /** make websocket driver stack, with the given Driver. 
  * @param driver typically CgClient [or CgBase<CgMessage>] 
@@ -45,7 +51,7 @@ export function makeCgClient<C extends CgBase<CgMessage>>
   addListeners(cgclient, listeners)
   return { wsbase, cgclient }
 }
-export function addListeners(cgclient: CgClient<CgMessage>, listeners: Listeners = {}) {
+export function addListeners<CgM extends pbMessage>(cgclient: CgClient<CgM>, listeners: Listeners = {}) {
   listeners.open && cgclient.addEventListener('open', listeners.open)
   listeners.close && cgclient.addEventListener('close', listeners.close)
   listeners.error && cgclient.addEventListener('error', listeners.error)

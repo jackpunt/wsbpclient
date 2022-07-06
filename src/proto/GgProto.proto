@@ -13,3 +13,14 @@ enum GgType {
   join = 8;      // Group client joins generic Game
   chat = 9;      // Group or DM to a player; inter-player chat, log/status from ref.
 }
+message GgMessage {
+  GgType type    = 1;    // indicates which fields are populated: 
+  int32  client  = 2;    // client_id from send-wrapper: wrapper.client_from
+  int32  player  = 3;    // player.index [0..N-1]; may be set on next(ndx); set by ref in join reply [< 0 for Observers]
+  string name    = 4;    // playerName for join; roster[client_id] -> [player,client,name]
+  string json    = 5;    // JSON for various payloads
+  string inform  = 7;    // extra string
+  repeated Rost roster = 10; // players, observers, referee 
+  int32 client_to= 11;   // used internally by Referee: wrapper.client_id
+
+}
