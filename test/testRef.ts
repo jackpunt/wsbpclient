@@ -45,7 +45,7 @@ function openAndClose(logMsg = '') {
   }
   let refJoin = (onRef: (wsbase, cgbase) => void) => {
     let ggRef = new TestGgRef(GgMessage, CgBase, wsWebSocketBase)
-    let cgbase = ggRef.cgBase
+    let cgbase = ggRef.cgbase
     let wsbase = ggRef.wsbase as wsWebSocketBase<pbMessage, GgMessage>
     let cgl = {
       error: errorwsb(wsbase), 

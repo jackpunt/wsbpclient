@@ -1,8 +1,8 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
 import { GgMessage, GgType } from "../src/GgProto.js"
-import { addEnumTypeString, CgBase, CgClient, GgClient, GgMessageOpts, GgRefMixin, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
+import { AckPromise, addEnumTypeString, CgBase, CgClient, CgMessage, CgMessageOpts, GgClient, GgMessageOpts, GgRefMixin, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
 import { wsWebSocketBase } from '../src/wsWebSocketBase.js'
-import { addListeners, closeStream, listTCPsockets, makeGgClient, wssPort } from './testFuncs.js'
+import { addListeners, closeStream, listTCPsockets, wssPort } from './testFuncs.js'
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
 let portStr = argVal('port', '8447', 'X'), port = Number.parseInt(portStr)
@@ -14,6 +14,14 @@ const echoserver: boolean = (testurl == echourl) // if echoserver, don't expect 
 console.log(stime(this, `Connect to testurl = ${AT.ansiText(['green'],testurl)}`))
 const group_name = 'testGroup'
 
+type Listener = (ev: any) => void
+type Listeners = {
+  open?: Listener, 
+  close?: Listener, 
+  error?: Listener, 
+  message?: Listener,
+  leave?: Listener,
+}
 declare module '../src/GgProto' {
   interface GgMessage {
     msgType: string
@@ -21,91 +29,102 @@ declare module '../src/GgProto' {
   }
 }
 addEnumTypeString(GgMessage, GgType)
-class GgClientForRef extends GgClient<GgMessage> {} // reify generics for 'typeof' in next line:
-class TestGgRef extends GgRefMixin<GgMessage, typeof GgClientForRef>(GgClient) {
-
-}
-function openAndClose(logMsg = '') {
-  let clientN = 0
-  const errorwsb = (wsb, logmsg=logMsg) => {
+class TestGgClient extends GgClient<GgMessage> {
+  static instId = 0
+  override cgbase: CgBase<GgMessage>;
+  override wsbase: wsWebSocketBase<pbMessage, CgMessage>
+  constructor(url: string, listeners?: Listeners) {
+    super(GgMessage, CgBase, wsWebSocketBase, url) // CgB, WSB
+    this.wsbase.log = 0
+    this.cgbase.log = 0
+    this.addListeners(listeners)
+  }
+  instId = ++TestGgClient.instId
+  logMsg = `TestGg-${this.instId}`
+  errorwsb(wsb, logmsg = this.logMsg) {
     return (ev: any) => { // dubious binding of 'wsb'...
       console.error(stime(undefined, `errorf: ${logmsg} ${AT.ansiText(['red'], 'wsb error:')}`), ev, wsb.closeState);
     }
   }
-  const closewsb = (wsb: WebSocketBase<pbMessage, pbMessage>, logmsg = logMsg) => {
+  closewsb(wsb: WebSocketBase<pbMessage, pbMessage>, logmsg = this.logMsg) {
     return (ev) => {
       let { type, wasClean, reason, code } = ev, evs = json({ type, wasClean, reason, code })
       console.log(stime(undefined, `closef: ${logmsg}`), { ev: evs, state: readyState(wsb.ws) })
     }
   }
+  cgl(logMsg = this.logMsg, more: Listeners): Listeners {
+    return {
+      error: this.errorwsb(this.wsbase, logMsg),
+      close: this.closewsb(this.wsbase, logMsg), 
+      ...more
+     }
+  }
+  addListeners(listeners: Listeners = {}) {
+    listeners.open && this.addEventListener('open', listeners.open)
+    listeners.close && this.addEventListener('close', listeners.close)
+    listeners.error && this.addEventListener('error', listeners.error)
+    listeners.message && this.addEventListener('message', listeners.message)
+    listeners.leave && this.addEventListener('leave', listeners.leave)
+  }
+  override eval_join(message: GgMessage): void {
+    console.log(stime(this, `.eval_joinGame:`), { message })
+    super.eval_join(message)
+  }
+}
+class TestGgRef extends GgRefMixin<GgMessage, typeof TestGgClient>(TestGgClient) {
+  
+}
 
+function openAndClose(logMsg = '') {
   let waitClose = (wsb: WebSocketBase<pbMessage, pbMessage>, logmsg = logMsg, wait=100, closer?: (ev)=>void) => {
     let port = wssPort(wsb as wsWebSocketBase<pbMessage, pbMessage>)
     setTimeout(() => closeStream(wsb, `${logmsg}.waitClose(${wait}, ${port}) `), wait, closer)
   }
-  let refJoin = (onRef: (wsbase, cgbase) => void) => {
-    let ggRef = new TestGgRef(GgMessage, CgBase, wsWebSocketBase)
-    let cgbase = ggRef.cgBase
-    let wsbase = ggRef.wsbase as wsWebSocketBase<pbMessage, GgMessage>
-    let cgl = {
-      error: errorwsb(wsbase), 
-      close: closewsb(wsbase, 'ref'),
+  let startRef = (onRef: (wsbase, cgbase) => void) => {
+    let ggRef = new TestGgRef(undefined)
+    let cgbase = ggRef.cgbase
+    let wsbase = ggRef.wsbase
+    addListeners(cgbase, ggRef.cgl('ref', {
       open: async (ev) => {
         console.log(stime('refJoin', `.open: wssPort=`), wssPort(wsbase))
         await cgbase.send_join(group_name, 0, 'referee')
         onRef(wsbase, cgbase)
-      }, 
+      },
       leave: (ev) => {
-        this.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
+        ggRef.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
       }
-    }
-    addListeners(cgbase, cgl)
+    }))
     ggRef.connectStack(testurl) // wsbase.connectWebSocket(testurl); wsbase.ws.addEL(onOpen)
   }
 
-  let makeGgMessage = (cgc: CgClient<GgMessage>, type: GgType, msgOpts: GgMessageOpts) => {
-    msgOpts.client_from = cgc.client_id // client_id if join'd as member of a ClientGroup
-    return new GgMessage({ type, ...msgOpts })
+  let joinGame = (ggc: TestGgClient, cgc: CgClient<GgMessage>) => {
+    let name = `test${ggc.instId}`
+    return ggc.sendAndReceive(() => ggc.send_join(name, {inform: `joinGame`}), (msg) => msg.type == GgType.join)
   }
-
-  let ggSend = async (cgc: CgClient<GgMessage>, info = 'ggSend') => {
-    let msg = makeGgMessage(cgc, GgType.chat, {
-      client: cgc.client_id,
-      inform: info
-    })
-    return cgc.send_send(msg, { nocc: true })
-  }
-  let joinGame = (ggc: GgClient<GgMessage>, cgc: CgClient<GgMessage>) => {
-    let joinMsg = makeGgMessage(cgc, GgType.join, {name: `test${clientN}`})
-    return ggc.sendAndReceive(() => ggc.send_message(joinMsg, {client_id: 0}), (msg) => msg.type == GgType.join)
-  }
-  let clientRun = async (ggc: GgClient<GgMessage>, cgc: CgClient<GgMessage>) => {
-    let ack0 = await cgc.send_join(group_name) 
+  let clientRun = async (ggc: TestGgClient, cgc: CgClient<GgMessage>) => {
+    let ack0 = await cgc.send_join(group_name)  // join GROUP as client
     if (ack0.success != true) return console.error(stime(this, `.clientRun: join failed:`), ack0.cause)
-    let joinMsg = await joinGame(ggc, cgc) // joinMsg.value -> {client, player, name, roster} ?
+    let joinMsg = await joinGame(ggc, cgc)      // joinMsg.value -> {client, player, name, roster} ?
     console.log(stime(this, `.clientRun: joinMsg =`), joinMsg)
   }
   let makeClientAndRun = () => {
-    let nc = ++clientN, clients = `client${nc}`
     let done, pdone = new Promise<void>((res, rej) => { done = res })
-    let { ggclient, wsbase, cgbase } = makeGgClient(undefined)
-    let cgl = {
-      error: errorwsb(wsbase), close: closewsb(wsbase, clients),
+    let ggc = new TestGgClient(undefined), ggId = ggc.logMsg
+    let cgbase = ggc.cgbase
+    let wsbase = ggc.wsbase
+    addListeners(cgbase, ggc.cgl(ggId, {
       open: async (ev) => {
         let port = wssPort(wsbase)
-        console.log(stime(), `${logMsg} ${clients} open(${port}):`, wsbase.closeState, json(ev))
-        await clientRun(ggclient, cgbase)
-        waitClose(wsbase, clients, 500 * nc, () => { console.log(stime(this, `.makeClientAndRun: closed`)) })
+        console.log(stime(), `${logMsg} ${ggId} open(${port}):`, wsbase.closeState, json(ev))
+        await clientRun(ggc, cgbase)
+        waitClose(wsbase, ggId, 500 * ggc.instId, () => { console.log(stime(this, `.makeClientAndRun: closed`)) })
         done()
       }
-    }
-    addListeners(cgbase, cgl)
-    wsbase.log = 1
-    cgbase.log = 1
-    ggclient.connectStack(testurl)
+    }))
+    ggc.connectStack(testurl)
     return pdone
   }
-  refJoin(async (wsb, cgc) => {
+  startRef(async (wsb, cgc) => {
     await makeClientAndRun()
     await makeClientAndRun()
     waitClose(wsb, 'ref', 3300, (ev) => {
@@ -115,5 +134,5 @@ function openAndClose(logMsg = '') {
   })
 }
 let x = 1
-openAndClose(`testJoin-${x++}`)
+openAndClose(`testGg-${x++}`)
 

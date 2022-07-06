@@ -41,7 +41,7 @@ export type GgMessageOpts = Partial<Pick<GgMessage, GGMK>>
 /** Driver that speaks Generic Game proto above CgBase<GgMessage>: players join, take turns, undo... */
 export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessage, pbMessage> {
   wsbase: WebSocketBase<pbMessage, pbMessage>;
-  cgBase: CgBase<InnerMessage>; // === this.dnstream
+  cgbase: CgBase<InnerMessage>; // === this.dnstream
   /** Constructor<InnerMessage>(DataBuf) */
   declare deserialize: (buf: DataBuf<InnerMessage>) => InnerMessage
 
@@ -90,7 +90,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
    * is .resolved when an Ack/Nak is receieved.
    */
   get ack_promise(): AckPromise { return (this.dnstream as CgBase<InnerMessage>).ack_promise}
-  get client_id(): number { return this.cgBase.client_id }
+  get client_id(): number { return this.cgbase.client_id }
   
   // modeled on CgBase.sendToSocket() TODO: integrate into CgBase?
   /** 
@@ -106,12 +106,12 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
       console.warn(stime(this, `.sendCgAck: duplicate Ack(${cause})`), this.message_to_ack.message)
       return this.message_to_ack
     }
-    let rv = this.cgBase.sendAck(cause, opts)
+    let rv = this.cgbase.sendAck(cause, opts)
     this.message_to_ack.fulfill(rv.message) // server was waiting for an ACK
     return rv
   }
   sendCgNak(cause: string, opts?: CgMessageOpts) {
-    let rv = this.cgBase.sendNak(cause, opts)
+    let rv = this.cgbase.sendNak(cause, opts)
     this.message_to_ack.fulfill(rv.message)
     return rv
   }
@@ -132,7 +132,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
       })
       return ackPromise // message queued to be sent
     }
-    this.cgBase.send_send(message, cgOpts) // sets this.ack_promise === cgClient.ack_promise
+    this.cgbase.send_send(message, cgOpts) // sets this.ack_promise === cgClient.ack_promise
     if (!!ackPromise) {
       // if ackPromise is supplied, then add .message and arrange to .fulfill():
       ackPromise.message = this.ack_promise.message // presence of .message indicates CgMessage has been sent
@@ -149,10 +149,10 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
    * @returns this GgClient
    */
   connectStack(url: string, onOpen?: (ggClient: GgClient<InnerMessage>) => void): this  {
-    if (!this.cgBase)
-      this.cgBase = (this.dnstream || this.connectDnStream(new this.CgB()).dnstream) as CgBase<InnerMessage> 
+    if (!this.cgbase)
+      this.cgbase = (this.dnstream || this.connectDnStream(new this.CgB()).dnstream) as CgBase<InnerMessage> 
     if (!this.wsbase)
-      this.wsbase = (this.cgBase.dnstream || this.cgBase.connectDnStream(new this.WSB()).dnstream) as WebSocketBase<pbMessage, CgMessage>
+      this.wsbase = (this.cgbase.dnstream || this.cgbase.connectDnStream(new this.WSB()).dnstream) as WebSocketBase<pbMessage, CgMessage>
     if (url) {
       let ggClient = this
       this.wsbase.connectDnStream(url)
@@ -313,7 +313,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       // Stack: GgClient=this=GgReferee; CgBase=RefGgBase; WebSocketBase -> url
       this.connectStack(url, (refClient: GgClient<InnerMessage>) => {
         onOpen(refClient)
-        refClient.cgBase.send_join(group, 0, "referee").then((ack: CgMessage) => {
+        refClient.cgbase.send_join(group, 0, "referee").then((ack: CgMessage) => {
           this.ll(1) && console.log(stime(this, `.joinGroup: ack =`), ack)
           this.roster.push({ client: ack.client_id, player: this.refid, name: "referee" })
           onJoin && onJoin(ack)
