@@ -22,7 +22,7 @@ declare module '../src/GgProto' {
 }
 addEnumTypeString(GgMessage, GgType)
 class GgClientForRef extends GgClient<GgMessage> {} // reify generics for 'typeof' in next line:
-class TestGgRef extends GgRefMixin<GgMessage, typeof GgClientForRef>(GgClient) {
+class TestGgRef extends GgRefMixin<GgMessage, typeof GgClientForRef>(GgClientForRef) {
 
 }
 function openAndClose(logMsg = '') {

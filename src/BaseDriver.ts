@@ -45,6 +45,15 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
   log: number = 0 // -1: No log, 0: minimal/useful log, 1: detail log, 2: extra log
   ll(l: number) { return this.log >= l }
 
+  /** return WebSocketBase at bottom of stack. */
+  get wsbase(): WebSocketBase<pbMessage,pbMessage> { 
+    let dnstream = this.dnstream
+    while ((dnstream instanceof BaseDriver) && !(dnstream instanceof WebSocketBase)) { dnstream = dnstream.dnstream }
+    return (dnstream instanceof WebSocketBase) && (dnstream as WebSocketBase<pbMessage, pbMessage>)
+  }
+  /** this.wsbase?.ws?.readyState == OPEN */
+  get wsOpen() { return this.wsbase?.ws?.readyState == WebSocket.OPEN }
+  
   newMessageEvent(data: DataBuf<I>): MessageEvent {
     try {
       return new MessageEvent('message', {data: data})

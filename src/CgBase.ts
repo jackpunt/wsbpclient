@@ -1,11 +1,11 @@
 import { json } from "@thegraid/common-lib";
-import { BaseDriver } from "./BaseDriver.js";
+import { BaseDriver, WebSocketBase } from "./BaseDriver.js";
 import { CgMessage, CgType } from "./CgProto.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
 
 /** a DOM event of type 'leave'. emit when (for ex) dnstream.close */
 export class LeaveEvent extends Event {
-  constructor(public client_id: number, public cause?: number, public group?: string) {
+  constructor(public client_id: number, public cause?: string, public group?: string) {
     super(CgType[CgType.leave])
   }
 }

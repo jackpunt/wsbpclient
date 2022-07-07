@@ -15,13 +15,14 @@ function stringData(data: DataBuf<any>) {
 
 /** Generic Game message: join (client_id, player, name, roster), next, undo, chat(name, inform)... 
  */
-export interface GgMessage extends GgMessage0 { 
+export interface GgMessage extends pbMessage { 
   type: GgType | any; // message_id: number from compatible enum...
   client: number;     // client_id: from ClientGroup; ref sets { client, player, name }
   player: number;     // player_id: serial #; large values indicate observer or referee (237)
   name: string;       // player name (provide when joining, must be unique w/in the Group)
   roster: Rost[];     // { client: client_id, player: player_id, name: name }
   client_to: number;  // from CgMessage: wrapper.client_id  [referee checks on join]
+  inform: string;     // information string for logging/debugging
   /** type as a string (vs enum value) */
   get msgType(): string // typically injected into pbMessage<Ioc extends GgMessage>
   // declare module "src/IoCproto" { interface IoC { msgType: string }}; addEnumTypeString(IoC)
@@ -40,7 +41,7 @@ export type GgMessageOpts = Partial<Pick<GgMessage, GGMK>>
 // We extend BaseDriver with the GenericGame proto driver/client, using these methods to talk to CgBase
 /** Driver that speaks Generic Game proto above CgBase<GgMessage>: players join, take turns, undo... */
 export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessage, pbMessage> {
-  wsbase: WebSocketBase<pbMessage, pbMessage>;
+  //wsbase: WebSocketBase<pbMessage, pbMessage>;
   cgbase: CgBase<InnerMessage>; // === this.dnstream
   /** Constructor<InnerMessage>(DataBuf) */
   declare deserialize: (buf: DataBuf<InnerMessage>) => InnerMessage
@@ -53,10 +54,10 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
 
   /**
    * Create a web socket stack
-   * @param ImC constructor<InnerMessage>(opts); With: ImC.deserialize(DataBuf) -> InnerMessage
-   * @param CgB CgBase<InnerMessage> constructor [if url supplied for connectStack]
-   * @param WSB WebSocketBase constructor [if url supplied for connectStack]
-   * @param url web socket URL - if provided: connect wsbase(url).then(onOpen(ggClient))
+   * @param ImC constructor\<InnerMessage>(opts); With: ImC.deserialize(DataBuf) -> InnerMessage
+   * @param CgB CgBase\<InnerMessage> constructor
+   * @param WSB WebSocketBase\<pb,Cg> constructor
+   * @param url WebSocket URL - when provided: connect wsbase(url).then(onOpen(ggClient))
    * @param onOpen callback when WebSocket is open: onOpen(this) => void
    */
   constructor(
@@ -83,8 +84,23 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.deserialize = deserialCatch
     this.connectStack(url, onOpen)
   }
-
-  get isOpen() { return !!this.wsbase && this.wsbase.ws && this.wsbase.ws.readyState == this.wsbase.ws.OPEN }
+  /**
+   * Stack this GgClient --> CgBase --> WebSocketBase --> URL 
+   * @param url URL to the target CgServer server
+   * @param onOpen invoked when GgClient/CgBase/WSB connection to server/URL is Open.
+   * @returns this GgClient
+   */
+  connectStack(url: string, onOpen?: (ggClient: GgClient<InnerMessage>) => void): this  {
+    if (!this.cgbase)
+      this.cgbase = (this.dnstream || this.connectDnStream(new this.CgB()).dnstream) as CgBase<InnerMessage> 
+    let wsbase = this.wsbase || (this.cgbase.connectDnStream(new this.WSB()), this.wsbase)
+    if (url) {
+      let ggClient = this
+      wsbase.connectDnStream(url)
+      onOpen && wsbase.ws.addEventListener('open', (ev) => onOpen(ggClient))
+    }
+    return this
+  }
 
   /** CgBase.ack_promise: Promise with .message from last send_send (or leave, join) 
    * is .resolved when an Ack/Nak is receieved.
@@ -142,24 +158,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     }
     return this.ack_promise
   }
-  /**
-   * wire-up this GgClient to a CgBase and WebSocketBase to the given URL 
-   * @param url string URL to the target CgServer server
-   * @param onOpen invoked when GgClient/CgBase/WSB connection to server/URL is Open.
-   * @returns this GgClient
-   */
-  connectStack(url: string, onOpen?: (ggClient: GgClient<InnerMessage>) => void): this  {
-    if (!this.cgbase)
-      this.cgbase = (this.dnstream || this.connectDnStream(new this.CgB()).dnstream) as CgBase<InnerMessage> 
-    if (!this.wsbase)
-      this.wsbase = (this.cgbase.dnstream || this.cgbase.connectDnStream(new this.WSB()).dnstream) as WebSocketBase<pbMessage, CgMessage>
-    if (url) {
-      let ggClient = this
-      this.wsbase.connectDnStream(url)
-      onOpen && this.wsbase.ws.addEventListener('open', (ev) => onOpen(ggClient))
-    }
-    return this
-  }
+
 
   /** 
    * Send GgMessage, get Ack, then wait for a GgMessage that matches predicate.

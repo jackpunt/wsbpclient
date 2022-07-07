@@ -1,6 +1,6 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
 import { GgMessage, GgType } from "../src/GgProto.js"
-import { AckPromise, addEnumTypeString, CgBase, CgClient, CgMessage, CgMessageOpts, GgClient, GgMessageOpts, GgRefMixin, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
+import { addEnumTypeString, CgBase, CgClient, CgMessage, GgClient, GgRefMixin, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
 import { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 import { addListeners, closeStream, listTCPsockets, wssPort } from './testFuncs.js'
 
@@ -32,8 +32,8 @@ addEnumTypeString(GgMessage, GgType)
 class TestGgClient extends GgClient<GgMessage> {
   static instId = 0
   override cgbase: CgBase<GgMessage>;
-  override wsbase: wsWebSocketBase<pbMessage, CgMessage>
-  constructor(url: string, listeners?: Listeners) {
+  override get wsbase() { return super.wsbase as wsWebSocketBase<pbMessage, CgMessage> }
+  constructor(url?: string, listeners?: Listeners) {
     super(GgMessage, CgBase, wsWebSocketBase, url) // CgB, WSB
     this.wsbase.log = 0
     this.cgbase.log = 0
@@ -81,7 +81,7 @@ function openAndClose(logMsg = '') {
     setTimeout(() => closeStream(wsb, `${logmsg}.waitClose(${wait}, ${port}) `), wait, closer)
   }
   let startRef = (onRef: (wsbase, cgbase) => void) => {
-    let ggRef = new TestGgRef(undefined)
+    let ggRef = new TestGgRef()
     let cgbase = ggRef.cgbase
     let wsbase = ggRef.wsbase
     addListeners(cgbase, ggRef.cgl('ref', {
@@ -107,7 +107,7 @@ function openAndClose(logMsg = '') {
   }
   let makeClientAndRun = () => {
     let done, pdone = new Promise<void>((res, rej) => { done = res })
-    let ggc = new TestGgClient(undefined), ggId = ggc.logMsg
+    let ggc = new TestGgClient(), ggId = ggc.logMsg
     let cgbase = ggc.cgbase
     let wsbase = ggc.wsbase
     addListeners(cgbase, ggc.cgl(ggId, {
