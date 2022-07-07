@@ -84,9 +84,11 @@ function openAndClose(logMsg = '') {
     let ggRef = new TestGgRef(undefined)
     let cgbase = ggRef.cgbase
     let wsbase = ggRef.wsbase
-    addListeners(cgbase, ggRef.cgl('ref', {leave: (ev) => {
-        ggRef.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
-      }}))
+    addListeners(cgbase, ggRef.cgl('ref', {
+      leave: (ev: LeaveEvent) => {
+        ggRef.client_leave(ev) // handled in GgRefMixin.RefereeBase
+      }
+    }))
     ggRef.joinGroup(testurl, group_name,
       async (openGgc) => {
         console.log(stime('ref.joinGroup', `.open: wssPort=`), wssPort(wsbase))
@@ -113,6 +115,8 @@ function openAndClose(logMsg = '') {
         let port = wssPort(wsbase)
         console.log(stime(), `${logMsg} ${ggId} open(${port}):`, wsbase.closeState, json(ev))
         await clientRun(ggc, cgbase)
+        if (cgbase.client_id == 2)
+          await cgbase.send_leave(group_name, cgbase.client_id, 'testDone&close', true)
         waitClose(wsbase, ggId, 500 * ggc.instId, () => { console.log(stime(this, `.makeClientAndRun: closed`)) })
         done()
       }

@@ -17,7 +17,7 @@ export function wssPort(wsb: wsWebSocketBase<pbMessage, pbMessage>, def: number 
   }
   return def
 }
-export type Listener = (ev: any) => void
+export type Listener = (ev: Event | any) => void
 export type Listeners2 = {
   open?: Listener, 
   close?: Listener, 

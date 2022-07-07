@@ -1,5 +1,5 @@
 import { argVal, buildURL } from '@thegraid/common-lib'
-import { WebSocketBase } from '../src/BaseDriver.js'
+import { AnyWSD, WebSocketBase } from '../src/BaseDriver.js'
 import type { AckPromise } from '../src/CgBase.js'
 import type { CgClient } from '../src/CgClient.js'
 import { CgMessage, CgType } from '../src/CgProto.js'
@@ -32,7 +32,7 @@ const close_fail: CloseInfo = { code: CLOSE_CODE.Empty, reason: "failed"}
 
 const testPromises: EzPromise<any>[] = [];
 /** function to track that sent msg recv's expected response. */
-function testMessage<W>(name: string, priorP: EzPromise<W>, msgGen: () => AckPromise,
+function testMessage<W>(name: string, priorP: EzPromise<W>|null, msgGen: () => AckPromise,
   expectMsg: (ack: CgMessage) => void, 
   expectRej?: (reason: any) => void,
   afterPrep?: () => void,
@@ -40,7 +40,7 @@ function testMessage<W>(name: string, priorP: EzPromise<W>, msgGen: () => AckPro
   priorP = priorP || testPromises[0]
   let nextP = new EzPromise<AckPromise>()
   test(name, () => {
-    return priorP.then((fil: W) => {
+    return priorP?.then((fil: W) => {
       let msgP = msgGen()
       new TestMsgAcked(name, msgP, nextP, expectMsg, expectRej)
       if (!!afterPrep) afterPrep()
@@ -75,12 +75,14 @@ class TestMsgAcked {
 }
 
 function makeTestCgClient(ignore, url: string | AWebSocket, listeners: { open?: EventListenerOrEventListenerObject, close?: EventListenerOrEventListenerObject, error?: EventListenerOrEventListenerObject, message?: EventListenerOrEventListenerObject } = {}) {
-  let wsbase = new wsWebSocketBase()
-  let cgclient = wsbase.connectStream(url, TestCgClient)[1] as CgClient<CgMessage>;
+  let wsbase = new wsWebSocketBase(), cgclient = new TestCgClient()
+  //wsbase.connectStream(url, TestCgClient) // ev: Event vs ErrorEvent
   listeners.open && cgclient.addEventListener('open', listeners.open)
   listeners.close && cgclient.addEventListener('close', listeners.close)
   listeners.error && cgclient.addEventListener('error', listeners.error)
   listeners.message && cgclient.addEventListener('message', listeners.message)
+  cgclient.connectDnStream(wsbase)
+  wsbase.connectStream(url)
   return { wsbase, cgclient }
 }
 
@@ -218,7 +220,7 @@ if (!nomsgs) {
         }
       }, (rej) => {
         fail(rej)
-      }, null, testTimeout - 2000);
+      }, undefined, testTimeout - 2000);
     {
       let cause = "ref-approved", expect_id = 1
       testMessage("CgClient.sendJoin & Ack", null,
@@ -264,7 +266,7 @@ if (!nomsgs) {
           expect(ack.cause).toEqual(cause)
           expect(ack.client_id).toBeUndefined()
           expect(ack.msg).toBeUndefined()
-        }, null, () => {
+        }, undefined, () => {
           echoserver && cgclient.sendAck(cause, { client_id })
         }
       )
@@ -316,7 +318,7 @@ if (!nomsgs) {
           }
         }, (rej) => {
           fail()
-        }, null, testTimeout - 2000)
+        }, undefined, testTimeout - 2000)
     }
     {
       let cause = "test_done", client_id = cgclient.client_id // 1

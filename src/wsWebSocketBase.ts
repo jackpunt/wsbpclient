@@ -2,7 +2,7 @@ import { stime } from '@thegraid/common-lib'
 import type { EzPromise } from '@thegraid/ezpromise'
 import type { WebSocket as ws$WebSocket } from "ws"
 
-import { AWebSocket, CgClient, CgMessage, CgType, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
+import { AnyWSD, AWebSocket, CgClient, CgMessage, CgType, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
 import { wsWebSocket } from './wsWebSocket.js'
 
 // https://www.npmjs.com/package/mock-socket (presumagly is *just* a mock, does not connect to anything)
@@ -80,20 +80,19 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
 }
 
 /** CgClient to Log and Ack msgs recv'd; log .onLeave() */
-export class TestCgClient<O extends CgMessage> extends CgClient<O> {
+export class TestCgClient<O extends CgMessage> extends CgClient<O> implements AnyWSD {
   override eval_send(message: CgMessage) {
     let inner_msg = CgMessage.deserialize(message.msg)
     this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.msgObject())
     this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
   }
 
-  /** when send_leave has been Ack'd, typically: closeStream */
-  override leaveAckNak(ack: string | CgMessage) {
-    let cause = (ack instanceof CgMessage) ? ack.cause : ack
-    //override CgBase so it does not auto-close the stream
-    this.ll(1) && console.log(stime(this, `.onLeave [${this.client_id}]`), cause )
+  /** when send_leave has been sent, typically: closeStream */
+  override leaveClose(reason: string) {
+    //override CgBase so client does not auto-close the stream
+    this.ll(1) && console.log(stime(this, `.leaveClose [${this.client_id}]`), reason )
     if (this.client_id !== 0) return
-    super.leaveAckNak(ack) // if last client leaving: close referee (??)
+    super.leaveClose(reason) // if last client leaving: close referee (??)
   }
 }
 /** TestCgClient extended for role of Referee: sends Ack/Nak */

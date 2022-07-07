@@ -55,8 +55,8 @@ function openAndClose(logMsg = '') {
         await cgbase.send_join(group_name, 0, 'referee')
         onRef(wsbase, cgbase)
       }, 
-      leave: (ev) => {
-        this.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
+      leave: (ev: any) => {
+        this.client_leave(ev) // handled in GgRefMixin.RefereeBase
       }
     }
     addListeners(cgbase, cgl)
