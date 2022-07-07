@@ -43,13 +43,13 @@ class TestGgClient extends GgClient<GgMessage> {
   logMsg = `TestGg-${this.instId}`
   errorwsb(wsb, logmsg = this.logMsg) {
     return (ev: any) => { // dubious binding of 'wsb'...
-      console.error(stime(undefined, `errorf: ${logmsg} ${AT.ansiText(['red'], 'wsb error:')}`), ev, wsb.closeState);
+      console.error(stime(undefined, `errorwsb: ${logmsg} ${AT.ansiText(['red'], 'wsb error:')}`), ev, wsb.closeState);
     }
   }
   closewsb(wsb: WebSocketBase<pbMessage, pbMessage>, logmsg = this.logMsg) {
     return (ev) => {
       let { type, wasClean, reason, code } = ev, evs = json({ type, wasClean, reason, code })
-      console.log(stime(undefined, `closef: ${logmsg}`), { ev: evs, state: readyState(wsb.ws) })
+      console.log(stime(undefined, `closewsb: ${logmsg}`), { ev: evs, state: readyState(wsb.ws) })
     }
   }
   cgl(logMsg = this.logMsg, more: Listeners): Listeners {
@@ -84,17 +84,13 @@ function openAndClose(logMsg = '') {
     let ggRef = new TestGgRef(undefined)
     let cgbase = ggRef.cgbase
     let wsbase = ggRef.wsbase
-    addListeners(cgbase, ggRef.cgl('ref', {
-      open: async (ev) => {
-        console.log(stime('refJoin', `.open: wssPort=`), wssPort(wsbase))
-        await cgbase.send_join(group_name, 0, 'referee')
-        onRef(wsbase, cgbase)
-      },
-      leave: (ev) => {
+    addListeners(cgbase, ggRef.cgl('ref', {leave: (ev) => {
         ggRef.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
-      }
-    }))
-    ggRef.connectStack(testurl) // wsbase.connectWebSocket(testurl); wsbase.ws.addEL(onOpen)
+      }}))
+    ggRef.joinGroup(testurl, group_name,
+      async (openGgc) => {
+        console.log(stime('ref.joinGroup', `.open: wssPort=`), wssPort(wsbase))
+      }, (joinAck) => onRef(wsbase, cgbase))
   }
 
   let joinGame = (ggc: TestGgClient, cgc: CgClient<GgMessage>) => {
@@ -125,12 +121,16 @@ function openAndClose(logMsg = '') {
     return pdone
   }
   startRef(async (wsb, cgc) => {
-    await makeClientAndRun()
-    await makeClientAndRun()
-    waitClose(wsb, 'ref', 3300, (ev) => {
-      console.log(stime(this, `.refJoin: closeEv=`), ev)
-      setTimeout(() => { listTCPsockets('close ref') }, 300)
-    })
+    setTimeout(async () => {
+      console.log(stime('startRef: Now start clients'))
+      await makeClientAndRun()
+      await makeClientAndRun()
+      // CgServer auto-closes (client_id==0) Referee; so this should be a no-op:
+      waitClose(wsb, 'ref', 3300, (ev) => {
+        console.log(stime(this, `.startRef: closeEv=`), ev)
+        setTimeout(() => { listTCPsockets('close ref') }, 300)
+      })
+    }, 500)
   })
 }
 let x = 1

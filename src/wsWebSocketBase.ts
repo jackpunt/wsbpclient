@@ -81,23 +81,24 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
 
 /** CgClient to Log and Ack msgs recv'd; log .onLeave() */
 export class TestCgClient<O extends CgMessage> extends CgClient<O> {
-  eval_send(message: CgMessage) {
+  override eval_send(message: CgMessage) {
     let inner_msg = CgMessage.deserialize(message.msg)
     this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.msgObject())
     this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
   }
 
   /** when send_leave has been Ack'd, typically: closeStream */
-  on_leave(cause: string) {
+  override leaveAckNak(ack: string | CgMessage) {
+    let cause = (ack instanceof CgMessage) ? ack.cause : ack
     //override CgBase so it does not auto-close the stream
     this.ll(1) && console.log(stime(this, `.onLeave [${this.client_id}]`), cause )
     if (this.client_id !== 0) return
-    super.on_leave(cause) // if last client leaving: close refere
+    super.leaveAckNak(ack) // if last client leaving: close referee (??)
   }
 }
 /** TestCgClient extended for role of Referee: sends Ack/Nak */
 export class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
-  eval_send(message: CgMessage) {
+  override eval_send(message: CgMessage) {
     this.ll(1) && console.log(stime(this, `.eval_send[${message.client_from} -> ${this.client_id}]`), this.innerMessageString(message))
     let inner_msg = CgMessage.deserialize(message.msg) // inner CgMessage, type==CgType.none
     if (inner_msg.type === CgType.none && inner_msg.cause == "NakMe") {

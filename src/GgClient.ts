@@ -1,5 +1,5 @@
 import { GgMessage as GgMessage0, GgType, Rost } from "./GgProto.js";
-import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
+import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -321,7 +321,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       })
       let dnstream = (this.dnstream as CgBase<GgMessage>) // a [Ref]CgBase
       dnstream.addEventListener('leave', (msg) => this.client_leave(msg))
-      console.log(stime(this, `.joinGroup: dnstream =`), dnstream)
+      console.log(stime(this, `.joinGroup: dnstream =`), this.isBrowser ? dnstream : className(dnstream))
       return this
     }
 

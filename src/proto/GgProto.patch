@@ -1,0 +1,36 @@
+*** GgProto.ts	2022-07-06 18:02:15.000000000 -0700
+--- proto/GgProto-patched.ts	2022-07-06 18:02:15.000000000 -0700
+*************** export class Rost extends pb_1.Message {
+*** 119,125 ****
+      serializeBinary(): Uint8Array {
+          return this.serialize();
+      }
+!     static deserializeBinary(bytes: Uint8Array): Rost {
+          return Rost.deserialize(bytes);
+      }
+  }
+--- 119,125 ----
+      serializeBinary(): Uint8Array {
+          return this.serialize();
+      }
+!     static override deserializeBinary(bytes: Uint8Array): Rost {
+          return Rost.deserialize(bytes);
+      }
+  }
+*************** export class GgMessage extends pb_1.Mess
+*** 346,352 ****
+      serializeBinary(): Uint8Array {
+          return this.serialize();
+      }
+!     static deserializeBinary(bytes: Uint8Array): GgMessage {
+          return GgMessage.deserialize(bytes);
+      }
+  }
+--- 346,352 ----
+      serializeBinary(): Uint8Array {
+          return this.serialize();
+      }
+!     static override deserializeBinary(bytes: Uint8Array): GgMessage {
+          return GgMessage.deserialize(bytes);
+      }
+  }

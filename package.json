@@ -9,12 +9,7 @@
   ],
   "scripts": {
     "pub": "npm run build; npm version ${1:-patch}; npm publish --access public",
-    "make-proto": "npm run protots; npm run patch-proto",
-    "make-patch": "cp src/CgProto.ts src/proto/CgProto-patched.ts; npm run protots; (cd src; diff -patch CgProto.ts proto/CgProto-patched.ts > proto/CgProto.patch); npm run patch-proto",
-    "patch-proto": "patch src/CgProto.ts < src/proto/CgProto.patch",
-    "protots": "npm run protots1; npm run protots2",
-    "protots1": "protoc -I src/proto --ts_out=src src/proto/CgProto.proto",
-    "protots2": "protoc -I src/proto --ts_out=src src/proto/GgProto.proto",
+    "make-proto": "bin/make-patch CgProto GgProto",
     "testCnx": "node test/dist/test/testCnx.js",
     "testGg": "node test/dist/test/testGg.js",
     "testJoin": "node test/dist/test/testJoin.js",
