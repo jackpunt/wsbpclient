@@ -1,3 +1,4 @@
 # do not package wsWebSocket & wsWebSocketBase [.js, d.ts, js.map]
 wsWebSocket*
 *.tar
+*.tgz
