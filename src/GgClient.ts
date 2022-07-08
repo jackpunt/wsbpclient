@@ -1,4 +1,4 @@
-import { GgMessage as GgMessage0, GgType, Rost } from "./GgProto.js";
+import { GgType, Rost } from "./GgProto.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
@@ -227,8 +227,6 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
 
   override parseEval(message: GgMessage) {
     let type = message.type
-    // validate player & srcCont/stack, then:
-
     switch (type) {
       case GgType.none: { this.eval_none(message); break }
       case GgType.chat: { this.eval_chat(message); break }
@@ -386,15 +384,15 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
      * @pr {name, client, player} of the requester/joiner; 
      * @param info CgMessageOpts = { info }
      */
-    send_roster(pr: rost, info = 'joinGame') {
+    send_roster(pr: rost, info = 'joinGameRoster') {
       let { name, client, player } = pr
       let active = this.roster.filter(pr => pr.client != undefined)
       let roster = active.map(pr => new Rost(pr))
       this.send_join(name, { client, player, roster }, { info }) // fromReferee to Group.
     }
     /** send join with roster to everyone. */
-    override send_join(name: string, opts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
-      let message = this.make_join(name, opts)
+  override send_join(name: string, ggOpts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
+    let message = this.make_join(name, ggOpts)
       this.ll(1) && console.log(stime(this, ".send_joinGame"), message)
       return this.send_message(message, { nocc: true, ...cgOpts }) // from Referee
     }

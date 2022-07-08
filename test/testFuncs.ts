@@ -76,12 +76,12 @@ export function addListeners<CgM extends pbMessage>(cgclient: CgClient<CgM>, lis
 
 export function closeStream(wsbase: WebSocketBase<pbMessage, pbMessage>, logmsg: string = '', closer?: (ev?: CloseEvent)=>void) {
   console.log(stime(), `${logmsg} try closeStream(normal, '${close_normal.reason}')`)
-  listTCPsockets(`closeStream:A ${logmsg}`)
+  logmsg.length>0 && listTCPsockets(`closeStream:A ${logmsg}`)
   !!closer && wsbase.addEventListener('close', closer)
   try {
     wsbase.closeStream(close_normal.code, close_normal.reason) // wsbase.ws.close(code, reason)
   } catch (err) {
     console.log(stime(), `${logmsg} closeStream error:`, err)
   }
-  listTCPsockets(`closeStream:B ${logmsg}`)
+  logmsg.length>0 && listTCPsockets(`closeStream:B ${logmsg}`)
 }

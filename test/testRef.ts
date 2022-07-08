@@ -105,5 +105,5 @@ function openAndClose(logMsg = '') {
   })
 }
 let x = 1
-openAndClose(`testJoin-${x++}`)
+openAndClose(`testRef-${x++}`)
 

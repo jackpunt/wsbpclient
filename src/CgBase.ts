@@ -118,7 +118,6 @@ export class AckPromise extends EzPromise<CgMessage> {
  */
 export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O> 
   implements WebSocketDriver<CgMessage, pbMessage> {
-  static msgsToAck = [CgType.send, CgType.join, CgType.leave]
   
   /** make new CgMessage() ensuring that client_from is set. */
   makeCgMessage(msgOpts: CgMessageOpts) {
@@ -245,7 +244,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
-      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), resolved: this.ack_resolved })
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), to_resolve: this.ack_message })
       this.ack_promise.then((ack) => {
         this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
