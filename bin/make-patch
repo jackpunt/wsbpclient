@@ -3,11 +3,16 @@
 # make-patch CgProto
 function makepatch() {
   local Proto="$1"
-  cp src/${Proto}.ts src/proto/${Proto}-patched.ts
-  #npm run protots; 
-  protoc -I src/proto --ts_out=src src/proto/${Proto}.proto
-  (cd src; diff -patch ${Proto}.ts proto/${Proto}-patched.ts > proto/${Proto}.patch); 
-  #npm run patch-proto
-  patch src/${Proto}.ts < src/proto/${Proto}.patch
+  cd src/proto
+  if [[ $(diff -q ${Proto}.ts ${Proto}-patched.ts) ]] ; then
+    cp ${Proto}.ts ${Proto}-patched.ts
+    #npm run protots; 
+    protoc -I . --ts_out=. ${Proto}.proto
+    diff -patch ${Proto}.ts ${Proto}-patched.ts > ${Proto}.patch
+    #npm run patch-proto
+    patch ${Proto}.ts < ${Proto}.patch
+  else
+    echo 'no diff' ${Proto}
+  fi
 }
 for p in "$@" ; do makepatch "$p"; done

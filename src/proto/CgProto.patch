@@ -1,5 +1,5 @@
-*** CgProto.ts	2022-07-07 13:27:12.000000000 -0700
---- proto/CgProto-patched.ts	2022-07-07 13:27:11.000000000 -0700
+*** CgProto.ts	2022-07-09 12:25:54.000000000 -0700
+--- CgProto-patched.ts	2022-07-09 12:25:54.000000000 -0700
 *************** export class CgMessage extends pb_1.Mess
 *** 303,309 ****
       serializeBinary(): Uint8Array {
