@@ -1,5 +1,5 @@
 import { AWebSocket, className, CLOSE_CODE, DataBuf, pbMessage, PbParser, stime, UpstreamDrivable, WebSocketDriver, WebSocketEventHandler } from "./types.js";
-
+import { json } from "@thegraid/common-lib"
 interface ListenerInfo {
   callback: EventListenerOrEventListenerObject;
   options: AddEventListenerOptions // {once? passive? capture?}
@@ -52,7 +52,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     return (dnstream instanceof WebSocketBase) && (dnstream as WebSocketBase<pbMessage, pbMessage>)
   }
   /** this.wsbase?.ws?.readyState == OPEN */
-  get wsOpen() { return this.wsbase?.ws?.readyState == WebSocket.OPEN }
+  get wsOpen() { return this.wsbase?.ws?.readyState == this.wsbase?.ws?.OPEN } // TODO does this really work?
   
   newMessageEvent(data: DataBuf<I>): MessageEvent {
     try {
@@ -165,7 +165,11 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
     let msg = this.deserialize(data)
     if (!msg) return {data, str}
     let msgType = (msg as any)?.msgType // msgType may be undefined 
-    return { data, str, msgType, msg }
+    return { data, str, msgType, msg: this.msgToString(msg) }
+  }
+  /** convert message to useful string for logging. json(message.toObject()) */
+  msgToString(message: I) {
+    return json(message.toObject())
   }
   /**
    * Deliver MessageEvent(data) to 'message' listeners: {type: 'message', data: data}.

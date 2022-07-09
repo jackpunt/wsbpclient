@@ -167,10 +167,15 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     let msgObj = msg?.msgObject(true)       //, toObj = msg?.toObject()
     let idata = msg?.msg as DataBuf<O>
     if (idata) {
-      let imsg = (this.upstream as BaseDriver<O, never>)?.deserialize(idata) || 'no deserialize'
+      let ups = (this.upstream as BaseDriver<O, never>)
+      let imsg = ups?.msgToString(ups?.deserialize(idata)) || 'no upstream.deserialize'
       return { msgObj, str, imsg }
     }
     return { msgObj }
+  }
+
+  override msgToString(message: CgMessage): string {
+    return message.msgObject(true) as string
   }
   
   /**
@@ -244,7 +249,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
-      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), to_resolve: this.ack_message })
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), to_resolve: this.ack_message?.msgObject(true) })
       this.ack_promise.then((ack) => {
         this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
@@ -427,10 +432,10 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   eval_send(message: CgMessage): void {
     if (this.upstream) {
-      this.ll(1) && console.log(stime(this, ".eval_send:"), (this.upstream as BaseDriver<O,pbMessage>).deserialize(message.msg))
+      this.ll(1) && console.log(stime(this, ".eval_send:"), { wsmessage: json((this.upstream as BaseDriver<O, pbMessage>).deserialize(message.msg).toObject()) })
       this.upstream.wsmessage(message.msg, message) // -> upstream.wsmessage(msg)
     } else {
-      this.ll(1) && console.log(stime(this, ".eval_send:"), "no upstream:", message.toObject())
+      this.ll(1) && console.log(stime(this, ".eval_send: sendNak(no upstream)"), this.msgToString(message))
       this.sendNak("no upstream", {client_id: message.client_from})
     }
     return

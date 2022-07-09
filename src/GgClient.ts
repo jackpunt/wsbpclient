@@ -1,3 +1,4 @@
+import { json } from "@thegraid/common-lib";
 import { GgType, Rost } from "./GgProto.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 
@@ -53,14 +54,14 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
   get isPlayer() { return this.player_id < this.maxPlayers}
 
   /**
-   * Create a web socket stack
+   * Create a web socket stack: GgClient -- CgB -- WSB[ws(url)]
    * @param ImC constructor\<InnerMessage>(opts); With: ImC.deserialize(DataBuf) -> InnerMessage
    * @param CgB CgBase\<InnerMessage> constructor
    * @param WSB WebSocketBase\<pb,Cg> constructor
    * @param url WebSocket URL - when provided: connect wsbase(url).then(onOpen(ggClient))
    * @param onOpen callback when WebSocket is open: onOpen(this) => void
    */
-  constructor(
+  constructor(  // GgClient extends BaseDriver
     //OmD: (buf: DataBuf<InnerMessage>) => InnerMessage,
     public ImC: new (opts: any) => InnerMessage,
     public CgB: new () => CgBase<InnerMessage> = CgBase,
@@ -83,6 +84,11 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     }
     this.deserialize = deserialCatch
     this.connectStack(url, onOpen)
+  }
+  override msgToString(message: GgMessage): string {
+    let msgObject = message?.toObject()
+    msgObject['type'] = `${GgType[message.type]}(${message.type})`
+    return json(msgObject)
   }
   /**
    * Stack this GgClient --> CgBase --> WebSocketBase --> URL 
@@ -141,7 +147,8 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     // note: sendCgAck() & sendCgNak() are not processed by this code.
     // queue new requests until previous request is ack'd:
     if (!this.message_to_ack.resolved) {
-      this.ll(1) && console.log(stime(this, `.send_message: need_to_ack`), { message, message_to_ack: this.message_to_ack.message })
+      this.ll(1) && console.log(stime(this, `.send_message: need_to_ack`), 
+        { message: this.msgToString(message), message_to_ack: this.message_to_ack.message.msgObject(true) })
       if (!ackPromise) ackPromise = new AckPromise(undefined) // undefined indicates still pending
       this.message_to_ack.then(() => {
         this.send_message(message, cgOpts, ackPromise) // ignore return value (either ackPromise OR .ack_promise)
@@ -210,9 +217,15 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
    */
   override onmessage(data: DataBuf<InnerMessage>): void {
     let wrapper = this.wrapper as CgMessage
-    this.message_to_ack = new AckPromise(wrapper)
     this.ll(1) && console.log(stime(this, `.onmessage: data = `), { data })
     let message = this.deserialize(data)
+    if (!this.message_to_ack.resolved) {
+      // Assert: [server-side] CgBase.sendToSocket() will not send while we have an Ack outstanding:
+      console.warn(stime(this, `.onmessage: new message while un-ack'd!`), 
+        { ack_msg: this.message_to_ack.message.msgObject(true), wrapper: wrapper.msgObject(true), message: this.msgToString(message) })
+    }
+
+    this.message_to_ack = new AckPromise(wrapper)
     if (!message) {
       console.warn(stime(this, `.onmessage: ignore message from wrapper`), wrapper)
       let opts: GGMK = undefined
@@ -263,14 +276,14 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.roster = roster.map(rost => { let { player, client, name } = rost; return { player, client, name }})
   }
   /** GgClient: when [this or other] client joins/leaves Game: update roster */
-  eval_join(message: GgMessage) {
-    this.ll(1) && console.log(stime(this, ".eval_joinGame:"), message)
+  eval_join(message: GgMessage, logit = this.ll(1)) {
+    logit && console.log(stime(this, ".eval_joinGame:"), this.msgToString(message))
     if (this.client_id === message.client) {
       this.player_id = message.player
       this.player_name = message.name
     }
     this.updateRoster(message.roster)
-    this.ll(1) && console.log(stime(this, ".eval_joinGame: roster"), this.roster)
+    logit && console.log(stime(this, ".eval_joinGame: roster ="), this.roster)
     this.sendCgAck("joinGame")
   }
   /** invoke table.undo */
@@ -297,7 +310,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
     get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
     /** GgRefMixin.RefereeBase() */
     constructor(...args: any[]) { 
-      super(...args) 
+      super(...args)  // invoke the given Base constructor: GgClientForRef
       return
     }
     /**
@@ -381,7 +394,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
 
     /** send new/departed player's name, client, player in a 'join' Game message;
      * - all players update their roster using included roster: Rost[]
-     * @pr {name, client, player} of the requester/joiner; 
+     * @pr {name, client, player} of the player to join/leave
      * @param info CgMessageOpts = { info }
      */
     send_roster(pr: rost, info = 'joinGameRoster') {
@@ -393,7 +406,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
     /** send join with roster to everyone. */
   override send_join(name: string, ggOpts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
     let message = this.make_join(name, ggOpts)
-      this.ll(1) && console.log(stime(this, ".send_joinGame"), message)
+      this.ll(1) && console.log(stime(this, ".send_joinGame"), this.msgToString(message))
       return this.send_message(message, { nocc: true, ...cgOpts }) // from Referee
     }
   }
