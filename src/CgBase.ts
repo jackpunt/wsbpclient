@@ -130,7 +130,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   client_id: number;   // my client_id for this group.
 
   /** used in parseEval logging, override in CgServerDriver */
-  get client_port(): string | number { return this.client_id; }
+  get client_port(): string | number { return this.client_id || 'no_client_id'; }
 
   // this may be tricky... need to block non-ack from any client with outstanding ack
   // (send them an immediate nak) in CgServerDriver
@@ -349,13 +349,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   override parseEval(message: CgMessage): void {
     // msgs_to_ack: join, leave, send, none?
     // QQQQ: allows to receive a new message while waiting for Ack. [which is good for echo test!]
-    this.ll(1) && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.msgType}:`), this.innerMessageString(message))
+    this.ll(1) && console.log(stime(this, `.parseEval[${this.client_port}] <- ${message.msgType}:`), this.msgToString(message))
     switch (message.type) {
       case CgType.ack: {
         if (this.ack_resolved) {
-          let { msgType, success, cause, client_id} = message
+          let { msgType, success, cause} = message
           this.ll(1) && console.log(stime(this, `.parseEval[${this.client_port}] --`), "ignore spurious Ack:", { msgType, success, cause })
-          this.ll(2) && console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.innerMessageString(this.promise_of_ack.message))
+          this.ll(2) && console.log(stime(this, ".parseEval:"), 'p_ack=', this.promise_of_ack, 'p_msg=', this.msgToString(this.promise_of_ack.message))
           break
         } else if (message.success) {
           this.eval_ack(message, this.ack_message)
@@ -370,7 +370,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       case CgType.send: { this.eval_send(message); break }
       case CgType.none: { this.eval_none(message); break }
       default: {
-        this.ll(1) && console.warn(stime(this, ".parseEval:"), "message has unknown CgType: ", message)
+        this.ll(1) && console.warn(stime(this, ".parseEval:"), `unknown CgType(${message.type}):`, this.msgToString(message))
       }
     }
     return
