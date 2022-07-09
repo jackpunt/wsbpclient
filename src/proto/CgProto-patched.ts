@@ -12,6 +12,7 @@ export enum CgType {
     leave = 4
 }
 export class CgMessage extends pb_1.Message {
+    #one_of_decls: number[][] = [];
     constructor(data?: any[] | {
         type?: CgType;
         client_id?: number;
@@ -26,7 +27,7 @@ export class CgMessage extends pb_1.Message {
         acks?: CgMessage[];
     }) {
         super();
-        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [11], []);
+        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [11], this.#one_of_decls);
         if (!Array.isArray(data) && typeof data == "object") {
             if ("type" in data && data.type != undefined) {
                 this.type = data.type;
@@ -64,61 +65,61 @@ export class CgMessage extends pb_1.Message {
         }
     }
     get type() {
-        return pb_1.Message.getField(this, 1) as CgType;
+        return pb_1.Message.getFieldWithDefault(this, 1, CgType.none) as CgType;
     }
     set type(value: CgType) {
         pb_1.Message.setField(this, 1, value);
     }
     get client_id() {
-        return pb_1.Message.getField(this, 2) as number;
+        return pb_1.Message.getFieldWithDefault(this, 2, 0) as number;
     }
     set client_id(value: number) {
         pb_1.Message.setField(this, 2, value);
     }
     get success() {
-        return pb_1.Message.getField(this, 3) as boolean;
+        return pb_1.Message.getFieldWithDefault(this, 3, false) as boolean;
     }
     set success(value: boolean) {
         pb_1.Message.setField(this, 3, value);
     }
     get client_from() {
-        return pb_1.Message.getField(this, 4) as number;
+        return pb_1.Message.getFieldWithDefault(this, 4, 0) as number;
     }
     set client_from(value: number) {
         pb_1.Message.setField(this, 4, value);
     }
     get cause() {
-        return pb_1.Message.getField(this, 5) as string;
+        return pb_1.Message.getFieldWithDefault(this, 5, "") as string;
     }
     set cause(value: string) {
         pb_1.Message.setField(this, 5, value);
     }
     get info() {
-        return pb_1.Message.getField(this, 6) as string;
+        return pb_1.Message.getFieldWithDefault(this, 6, "") as string;
     }
     set info(value: string) {
         pb_1.Message.setField(this, 6, value);
     }
     get ident() {
-        return pb_1.Message.getField(this, 7) as number;
+        return pb_1.Message.getFieldWithDefault(this, 7, 0) as number;
     }
     set ident(value: number) {
         pb_1.Message.setField(this, 7, value);
     }
     get msg() {
-        return pb_1.Message.getField(this, 8) as Uint8Array;
+        return pb_1.Message.getFieldWithDefault(this, 8, new Uint8Array()) as Uint8Array;
     }
     set msg(value: Uint8Array) {
         pb_1.Message.setField(this, 8, value);
     }
     get group() {
-        return pb_1.Message.getField(this, 9) as string;
+        return pb_1.Message.getFieldWithDefault(this, 9, "") as string;
     }
     set group(value: string) {
         pb_1.Message.setField(this, 9, value);
     }
     get nocc() {
-        return pb_1.Message.getField(this, 10) as boolean;
+        return pb_1.Message.getFieldWithDefault(this, 10, false) as boolean;
     }
     set nocc(value: boolean) {
         pb_1.Message.setField(this, 10, value);
@@ -141,7 +142,7 @@ export class CgMessage extends pb_1.Message {
         group?: string;
         nocc?: boolean;
         acks?: ReturnType<typeof CgMessage.prototype.toObject>[];
-    }) {
+    }): CgMessage {
         const message = new CgMessage({});
         if (data.type != null) {
             message.type = data.type;
@@ -231,27 +232,27 @@ export class CgMessage extends pb_1.Message {
     serialize(w: pb_1.BinaryWriter): void;
     serialize(w?: pb_1.BinaryWriter): Uint8Array | void {
         const writer = w || new pb_1.BinaryWriter();
-        if (this.type !== undefined)
+        if (this.type != CgType.none)
             writer.writeEnum(1, this.type);
-        if (this.client_id !== undefined)
+        if (this.client_id != 0)
             writer.writeInt32(2, this.client_id);
-        if (this.success !== undefined)
+        if (this.success != false)
             writer.writeBool(3, this.success);
-        if (this.client_from !== undefined)
+        if (this.client_from != 0)
             writer.writeInt32(4, this.client_from);
-        if (typeof this.cause === "string" && this.cause.length)
+        if (this.cause.length)
             writer.writeString(5, this.cause);
-        if (typeof this.info === "string" && this.info.length)
+        if (this.info.length)
             writer.writeString(6, this.info);
-        if (this.ident !== undefined)
+        if (this.ident != 0)
             writer.writeInt32(7, this.ident);
-        if (this.msg !== undefined)
+        if (this.msg.length)
             writer.writeBytes(8, this.msg);
-        if (typeof this.group === "string" && this.group.length)
+        if (this.group.length)
             writer.writeString(9, this.group);
-        if (this.nocc !== undefined)
+        if (this.nocc != false)
             writer.writeBool(10, this.nocc);
-        if (this.acks !== undefined)
+        if (this.acks.length)
             writer.writeRepeatedMessage(11, this.acks, (item: CgMessage) => item.serialize(writer));
         if (!w)
             return writer.getResultBuffer();

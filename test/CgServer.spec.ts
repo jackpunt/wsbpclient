@@ -284,7 +284,7 @@ if (!nomsgs) {
           nomsglog || console.log(stime(here), "returned ack:", cgclient.innerMessageString(ack))
           expect(ack.success).toBe(true)
           expect(ack.cause).toBe('send_done')  // all 'send' are Ack by server with 'send_done' QQQQ: should we fwd Ack from Referee?
-          nomsglog || console.log(stime(here), "returned message", inner_sent.msgObject(true))
+          nomsglog || console.log(stime(here), "returned message", inner_sent.msgString)
           expect(inner_sent.type).toEqual(CgType.none)
           expect(inner_sent.cause).toEqual(cause)
           expect(inner_sent.info).toEqual(cause)
@@ -294,7 +294,7 @@ if (!nomsgs) {
           echoserver && cgclient.sendAck('send_done', { client_id })
           wsbase.listenFor(CgType.send, (msg) => {
             inner_sent = CgMessage.deserialize(msg.msg)
-            nomsglog || console.log(stime(here), `RECEIVED SEND:`, inner_sent.msgObject(true))
+            nomsglog || console.log(stime(here), `RECEIVED SEND:`, inner_sent.msgString)
           })
         }, testTimeout - 2000)
     }

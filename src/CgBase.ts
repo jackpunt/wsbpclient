@@ -1,6 +1,6 @@
 import { json } from "@thegraid/common-lib";
 import { BaseDriver, WebSocketBase } from "./BaseDriver.js";
-import { CgMessage, CgType } from "./CgProto.js";
+import { CgMessage, CgMessageOpts, CgType } from "./CgProto.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
 
 /** a DOM event of type 'leave'. emit when (for ex) dnstream.close */
@@ -11,92 +11,13 @@ export class LeaveEvent extends Event {
 }
 
 // https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
-declare module './CgProto' {
-  interface CgMessage {
-    /** @return true for: none, send, join; false for ack, leave */
-    expectsAck: boolean
-    /** extract and stringify fields of CgMessage | CgMessageOpts */
-    msgObject(asStr?: boolean): CgMessageOpts | string
-    /** inner message as msgPeek+stringChars(msg) */
-    msgStr: string
-    /** 
-     * Peek at inner msg without deserializing it.  
-     * this.msg defined for send OR ack(send)  
-     * send[type+length] OR Ack[2+length]  
-     */
-    msgPeek: string
-    /** @return CgType as a string: CgType[this.type] */
-    msgType: string
-  }
-}
 
 //    
 function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 
-/** a readable view into a CgMessage */
-CgMessage.prototype.msgObject = function(asStr = false): CgMessageOptsX | string {
-  let thss: CgMessage = this
-  let msgType = thss.msgType  // every CgMessage has a msgType
-  let msgObj: CgMessageOptsX = { msgType }
-  if (thss.client_id !== undefined) msgObj.client_id = thss.client_id
-  if (thss.success !== undefined) msgObj.success = thss.success
-  if (thss.client_from !== undefined) msgObj.client_from = thss.client_from
-  if (thss.cause !== undefined) msgObj.cause = thss.cause 
-  if (thss.info !== undefined) msgObj.info = thss.info
-  if (thss.ident !== undefined) msgObj.ident = thss.ident
-  if (thss.group !== undefined) msgObj.group = thss.group
-  if (thss.nocc !== undefined) msgObj.nocc = thss.nocc
-  if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
-  if (thss.acks?.length > 0) msgObj.acks = thss.acks
-  if (asStr) {
-    return json(msgObj)
-    //return Object.entries(msgObj).reduce((pv, [key, val]) => pv + `${key}: ${val}, `, '{ ')+'}'
-  }
-  return msgObj
-}
-// add methods to the objects created by new CgMessage()
-Object.defineProperties(CgMessage.prototype, {
-  'expectsAck': {
-    get: function expectsAck() {
-      return [CgType.none, CgType.send, CgType.join].includes(this.type)
-    }
-  },
-  // return CgType as a string
-  'msgType': {
-    get: function msgType() {
-      let thss = (this as CgMessage), type = thss.type
-      return (type !== CgType.ack) ? CgType[type] : thss.success ? 'Ack' : 'Nak'
-    }
-  },
-  // short string [type + length] of inner 'msg' of send/ack
-  'msgPeek': {
-    get: function msgPeek() {
-      let thss = (this as CgMessage), msg = thss.msg
-      return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
-    }
-  }, 
-  // full charString of inner 'msg' or send/ack
-  'msgStr': {
-    get: function msgStr() {
-      let msg = (this as CgMessage).msg
-      if (msg === undefined) return undefined
-      let bytes = msg.slice(1), strs = []
-      bytes.forEach(char => strs.push(charString(char)))
-      return `${this.msgPeek}${":".concat(...strs)}]`
-    }
-  }
-})
 
 // export type ParserFactory<INNER extends pbMessage, OUTER extends CgMessage> 
 //    = (cnx: CgBaseCnx<INNER, OUTER>) => PbParser<INNER>;
-
-// https://www.typescriptlang.org/docs/handbook/utility-types.html
-type CGMKw = "serialize" | "outObject" | "expectsAck" // hidden
-type CGMKx = "msgType" | "msgPeek" | "msgStr"         // visible from CgMessageOptX
-type CGMK = Exclude<keyof CgMessage, Partial<keyof pbMessage> | CGMKw | CGMKx >
-type CgMessageOptsX = Partial<Pick<CgMessage, CGMK | CGMKx>>
-/** Attributes that can be set when making/sending a CgMessage. */
-export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
 
 // use { signature } to define a type; a class type using { new(): Type }
 //function create<Type>(c: { new (): Type }): Type { return new c(); }
@@ -164,7 +85,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     let msg = this.deserialize(data)
     //let msgType = msg.msgType // msgType may be undefined 
     //let ary = msg?.['array']?.toString()
-    let msgObj = msg?.msgObject(true)       //, toObj = msg?.toObject()
+    let msgObj = msg?.msgString       //, toObj = msg?.toObject()
     let idata = msg?.msg as DataBuf<O>
     if (idata) {
       let ups = (this.upstream as BaseDriver<O, never>)
@@ -175,7 +96,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   }
 
   override msgToString(message: CgMessage): string {
-    return message.msgObject(true) as string
+    return message.msgString
   }
   
   /**
@@ -249,7 +170,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
-      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), to_resolve: this.ack_message?.msgObject(true) })
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), to_resolve: this.ack_message?.msgString })
       this.ack_promise.then((ack) => {
         this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
@@ -395,7 +316,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
 
   /** CgBase informed (by CgServerDriver) that [other] Client has departed Group; OR I've been booted by Ref. */
   eval_leave(message: CgMessage): void {
-    this.ll(1) && console.log(stime(this, `.eval_leave[${this.client_id}]:`), { msgObj: message.msgObject(true) })
+    this.ll(1) && console.log(stime(this, `.eval_leave[${this.client_id}]:`), { msgObj: message.msgString })
     let client_id = message.client_id
     // pro'ly move this to CgClient: so can override log, and so CgServer can do its own.
     if (client_id === this.client_id) {

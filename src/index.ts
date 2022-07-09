@@ -4,5 +4,6 @@ export * from './CgBase.js'
 export * from './CgClient.js'
 export * from './CgProto.js'
 export * from './GgClient.js'
+export * from './GgProto.js'
 export * from './types.js'
 

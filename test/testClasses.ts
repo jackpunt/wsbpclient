@@ -63,7 +63,7 @@ export class CgBaseForRef extends CgBase<GgMessage> {
   permRef = true
   /** eval_leave() when a Client has left the Group. */
   override eval_leave(message: CgMessage) {
-    console.log(stime(this, ` CgBaseForRef.eval_leave: received message`), message.msgObject(true))
+    console.log(stime(this, ` CgBaseForRef.eval_leave: received message`), message.msgString)
     if (message.client_id === this.client_id && this.permRef) {
       // ref has been offered a chance to leave... 
       // but we would need to assure there is clean handover if a client_join is in flight from server!
@@ -79,8 +79,8 @@ export class CgBaseForRef extends CgBase<GgMessage> {
     this.dispatchEvent(event)
   }
   override leaveClose(reason: string): void {
-    let ackp = this.ack_promise, ack_value = (ackp.value instanceof CgMessage) ? ackp.value.msgObject(true) : 'unresolved'
-    console.log(stime(this, ` CgBaseForRef.leaveClose: ack =`), { ack_value, ack_msg: this.ack_message.msgObject(true) })
+    let ackp = this.ack_promise, ack_value = (ackp.value instanceof CgMessage) ? ackp.value.msgString : 'unresolved'
+    console.log(stime(this, ` CgBaseForRef.leaveClose: ack =`), { ack_value, ack_msg: this.ack_message.msgString })
     if (!this.ack_promise.resolved) {
       this.ack_promise.then(() => {
         setTimeout(() => this.leaveClose(reason), 4) // process any queued transactions before closeStream
@@ -89,7 +89,7 @@ export class CgBaseForRef extends CgBase<GgMessage> {
   }
   /** override to log while debugging */
   override eval_ack(ack: CgMessage, req: CgMessage): void {
-    console.log(stime(this, ` CgBaseForRef.eval_ack:`), { ack: ack.msgObject(true), req: req.msgObject(true) })
+    console.log(stime(this, ` CgBaseForRef.eval_ack:`), { ack: ack.msgString, req: req.msgString })
     //super.eval_ack(message, req) // super does nothing
   }
 }

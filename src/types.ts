@@ -14,9 +14,11 @@ export function addEnumTypeString(msgClass: { prototype: object }, tEnum: any = 
   })
 }
 export function stringData(data: any[]) {
-  let k = data.filter((v: number) => v >= 32 && v <= 126)
+  let k = data.filter((v: number) => v >= 32 && v < 127)
   return String.fromCharCode(...k)
 }
+export function charString(char: number) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
+
 /** 
  * websocket close codes.
  * 

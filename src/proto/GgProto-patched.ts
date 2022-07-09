@@ -12,13 +12,14 @@ export enum GgType {
     chat = 9
 }
 export class Rost extends pb_1.Message {
+    #one_of_decls: number[][] = [];
     constructor(data?: any[] | {
         client?: number;
         player?: number;
         name?: string;
     }) {
         super();
-        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], []);
+        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], this.#one_of_decls);
         if (!Array.isArray(data) && typeof data == "object") {
             if ("client" in data && data.client != undefined) {
                 this.client = data.client;
@@ -32,19 +33,19 @@ export class Rost extends pb_1.Message {
         }
     }
     get client() {
-        return pb_1.Message.getField(this, 2) as number;
+        return pb_1.Message.getFieldWithDefault(this, 2, 0) as number;
     }
     set client(value: number) {
         pb_1.Message.setField(this, 2, value);
     }
     get player() {
-        return pb_1.Message.getField(this, 3) as number;
+        return pb_1.Message.getFieldWithDefault(this, 3, 0) as number;
     }
     set player(value: number) {
         pb_1.Message.setField(this, 3, value);
     }
     get name() {
-        return pb_1.Message.getField(this, 4) as string;
+        return pb_1.Message.getFieldWithDefault(this, 4, "") as string;
     }
     set name(value: string) {
         pb_1.Message.setField(this, 4, value);
@@ -53,7 +54,7 @@ export class Rost extends pb_1.Message {
         client?: number;
         player?: number;
         name?: string;
-    }) {
+    }): Rost {
         const message = new Rost({});
         if (data.client != null) {
             message.client = data.client;
@@ -87,11 +88,11 @@ export class Rost extends pb_1.Message {
     serialize(w: pb_1.BinaryWriter): void;
     serialize(w?: pb_1.BinaryWriter): Uint8Array | void {
         const writer = w || new pb_1.BinaryWriter();
-        if (this.client !== undefined)
+        if (this.client != 0)
             writer.writeInt32(2, this.client);
-        if (this.player !== undefined)
+        if (this.player != 0)
             writer.writeInt32(3, this.player);
-        if (typeof this.name === "string" && this.name.length)
+        if (this.name.length)
             writer.writeString(4, this.name);
         if (!w)
             return writer.getResultBuffer();
@@ -124,6 +125,7 @@ export class Rost extends pb_1.Message {
     }
 }
 export class GgMessage extends pb_1.Message {
+    #one_of_decls: number[][] = [];
     constructor(data?: any[] | {
         type?: GgType;
         client?: number;
@@ -135,7 +137,7 @@ export class GgMessage extends pb_1.Message {
         client_to?: number;
     }) {
         super();
-        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [10], []);
+        pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [10], this.#one_of_decls);
         if (!Array.isArray(data) && typeof data == "object") {
             if ("type" in data && data.type != undefined) {
                 this.type = data.type;
@@ -164,37 +166,37 @@ export class GgMessage extends pb_1.Message {
         }
     }
     get type() {
-        return pb_1.Message.getField(this, 1) as GgType;
+        return pb_1.Message.getFieldWithDefault(this, 1, GgType.none) as GgType;
     }
     set type(value: GgType) {
         pb_1.Message.setField(this, 1, value);
     }
     get client() {
-        return pb_1.Message.getField(this, 2) as number;
+        return pb_1.Message.getFieldWithDefault(this, 2, 0) as number;
     }
     set client(value: number) {
         pb_1.Message.setField(this, 2, value);
     }
     get player() {
-        return pb_1.Message.getField(this, 3) as number;
+        return pb_1.Message.getFieldWithDefault(this, 3, 0) as number;
     }
     set player(value: number) {
         pb_1.Message.setField(this, 3, value);
     }
     get name() {
-        return pb_1.Message.getField(this, 4) as string;
+        return pb_1.Message.getFieldWithDefault(this, 4, "") as string;
     }
     set name(value: string) {
         pb_1.Message.setField(this, 4, value);
     }
     get json() {
-        return pb_1.Message.getField(this, 5) as string;
+        return pb_1.Message.getFieldWithDefault(this, 5, "") as string;
     }
     set json(value: string) {
         pb_1.Message.setField(this, 5, value);
     }
     get inform() {
-        return pb_1.Message.getField(this, 7) as string;
+        return pb_1.Message.getFieldWithDefault(this, 7, "") as string;
     }
     set inform(value: string) {
         pb_1.Message.setField(this, 7, value);
@@ -206,7 +208,7 @@ export class GgMessage extends pb_1.Message {
         pb_1.Message.setRepeatedWrapperField(this, 10, value);
     }
     get client_to() {
-        return pb_1.Message.getField(this, 11) as number;
+        return pb_1.Message.getFieldWithDefault(this, 11, 0) as number;
     }
     set client_to(value: number) {
         pb_1.Message.setField(this, 11, value);
@@ -220,7 +222,7 @@ export class GgMessage extends pb_1.Message {
         inform?: string;
         roster?: ReturnType<typeof Rost.prototype.toObject>[];
         client_to?: number;
-    }) {
+    }): GgMessage {
         const message = new GgMessage({});
         if (data.type != null) {
             message.type = data.type;
@@ -289,21 +291,21 @@ export class GgMessage extends pb_1.Message {
     serialize(w: pb_1.BinaryWriter): void;
     serialize(w?: pb_1.BinaryWriter): Uint8Array | void {
         const writer = w || new pb_1.BinaryWriter();
-        if (this.type !== undefined)
+        if (this.type != GgType.none)
             writer.writeEnum(1, this.type);
-        if (this.client !== undefined)
+        if (this.client != 0)
             writer.writeInt32(2, this.client);
-        if (this.player !== undefined)
+        if (this.player != 0)
             writer.writeInt32(3, this.player);
-        if (typeof this.name === "string" && this.name.length)
+        if (this.name.length)
             writer.writeString(4, this.name);
-        if (typeof this.json === "string" && this.json.length)
+        if (this.json.length)
             writer.writeString(5, this.json);
-        if (typeof this.inform === "string" && this.inform.length)
+        if (this.inform.length)
             writer.writeString(7, this.inform);
-        if (this.roster !== undefined)
+        if (this.roster.length)
             writer.writeRepeatedMessage(10, this.roster, (item: Rost) => item.serialize(writer));
-        if (this.client_to !== undefined)
+        if (this.client_to != 0)
             writer.writeInt32(11, this.client_to);
         if (!w)
             return writer.getResultBuffer();

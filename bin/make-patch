@@ -3,7 +3,6 @@
 # make-patch CgProto
 function makepatch() {
   local Proto="$1"
-  cd src/proto
   if [[ $(diff -q ${Proto}.ts ${Proto}-patched.ts) ]] ; then
     cp ${Proto}.ts ${Proto}-patched.ts
     #npm run protots; 
@@ -15,4 +14,4 @@ function makepatch() {
     echo 'no diff' ${Proto}
   fi
 }
-for p in "$@" ; do makepatch "$p"; done
+for p in "$@" ; do (cd src/proto; makepatch "$p"); done

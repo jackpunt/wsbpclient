@@ -2,7 +2,8 @@ import { stime } from '@thegraid/common-lib'
 import type { EzPromise } from '@thegraid/ezpromise'
 import type { WebSocket as ws$WebSocket } from "ws"
 
-import { AnyWSD, AWebSocket, CgClient, CgMessage, CgType, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
+import {CgMessage, CgType} from './CgProto.js'
+import { AnyWSD, AWebSocket, CgClient, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
 import { wsWebSocket } from './wsWebSocket.js'
 
 // https://www.npmjs.com/package/mock-socket (presumagly is *just* a mock, does not connect to anything)
@@ -67,7 +68,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
     let listener = (ev: Event) => {
       let data = (ev as MessageEvent).data as DataBuf<CgMessage>
       let cgm = CgMessage.deserialize(data)
-      this.ll(1) && console.log(stime(this, `.listenFor(${CgType[type]})`), cgm.msgObject(true))
+      this.ll(1) && console.log(stime(this, `.listenFor(${CgType[type]})`), cgm.msgString)
       if (cgm.type === type) {
         this.removeEventListener('message', listener)
         handle(cgm)
@@ -82,7 +83,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
 export class TestCgClient<O extends CgMessage> extends CgClient<O> implements AnyWSD {
   override eval_send(message: CgMessage) {
     let inner_msg = CgMessage.deserialize(message.msg)
-    this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.msgObject(true))
+    this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.msgString)
     this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
   }
 
@@ -111,7 +112,7 @@ export class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
       message.info = "send(aug_none)"
       let aug_send = message.serializeBinary() // augment & re-serialize original CgMessage({type: CgType.send}, ...)
       let pAck = this.sendAck(inner_msg.cause, { client_id: message.client_from, msg: aug_send })
-      this.ll(1) && console.log(stime(this, `.eval_send returning Ack=`), pAck.message.msgObject(true))
+      this.ll(1) && console.log(stime(this, `.eval_send returning Ack=`), pAck.message.msgString)
       return
     }
     this.sendAck("send-approved", {client_id: message.client_from})

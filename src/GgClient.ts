@@ -1,5 +1,5 @@
 import { json } from "@thegraid/common-lib";
-import { GgType, Rost } from "./GgProto.js";
+import { GgMessageOpts, GgMessage, GgType, rost, Rost, GgMessageOptsX } from "./GgProto.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
@@ -8,15 +8,16 @@ type Constructor<T = {}> = new (...args: any[]) => T;
  * 
  * or: use upstream.deserialize()!
  */
-function stringData(data: DataBuf<any>) {
-  let ary = new Uint8Array(data)
-  let k = ary.filter((v: number) => v >= 32 && v < 127)
+function stringData(data: DataBuf<any>) { // TODO: import from types (data is a UInt8Array)??
+  if (!(data instanceof Uint8Array)) data = new Uint8Array(data)
+  //let ary = new Uint8Array(data)
+  let k = data.filter((v: number) => v >= 32 && v < 127)
   return String.fromCharCode(...k)
 }
 
 /** Generic Game message: join (client_id, player, name, roster), next, undo, chat(name, inform)... 
  */
-export interface GgMessage extends pbMessage { 
+interface GgMessageX extends pbMessage { 
   type: GgType | any; // message_id: number from compatible enum...
   client: number;     // client_id: from ClientGroup; ref sets { client, player, name }
   player: number;     // player_id: serial #; large values indicate observer or referee (237)
@@ -28,11 +29,6 @@ export interface GgMessage extends pbMessage {
   get msgType(): string // typically injected into pbMessage<Ioc extends GgMessage>
   // declare module "src/IoCproto" { interface IoC { msgType: string }}; addEnumTypeString(IoC)
 }
-
-/** GgMessage.Rost as object: */
-export type rost = { name: string, client: number, player: number }
-type GGMK = Exclude<keyof GgMessage, Partial<keyof pbMessage> | "serialize">
-export type GgMessageOpts = Partial<Pick<GgMessage, GGMK>>
 
 // try make a Generic GgClient that wraps a CgBase for a given GgMessage/pbMessage type.
 // InnerMessage is like: HgMessage or CmMessage: share basic messages:
@@ -75,7 +71,6 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     let deserial = ImC['deserialize'] as ((buf: DataBuf<InnerMessage>) => InnerMessage)
     let deserialCatch = (buf: DataBuf<CgMessage>) => {
       try {
-        //console.log(stime(this, `.deserialize buf =`), buf)
         return deserial(buf)
       } catch (err) {
         this.ll(0) && console.error(stime(this, `.deserialize: failed`), stringData(buf), buf, err)
@@ -85,11 +80,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.deserialize = deserialCatch
     this.connectStack(url, onOpen)
   }
-  override msgToString(message: GgMessage): string {
-    let msgObject = message?.toObject()
-    msgObject['type'] = `${GgType[message.type]}(${message.type})`
-    return json(msgObject)
-  }
+
   /**
    * Stack this GgClient --> CgBase --> WebSocketBase --> URL 
    * @param url URL to the target CgServer server
@@ -148,7 +139,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     // queue new requests until previous request is ack'd:
     if (!this.message_to_ack.resolved) {
       this.ll(1) && console.log(stime(this, `.send_message: need_to_ack`), 
-        { message: this.msgToString(message), message_to_ack: this.message_to_ack.message.msgObject(true) })
+        { message: this.msgToString(message), message_to_ack: this.message_to_ack.message.msgString })
       if (!ackPromise) ackPromise = new AckPromise(undefined) // undefined indicates still pending
       this.message_to_ack.then(() => {
         this.send_message(message, cgOpts, ackPromise) // ignore return value (either ackPromise OR .ack_promise)
@@ -222,13 +213,12 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     if (!this.message_to_ack.resolved) {
       // Assert: [server-side] CgBase.sendToSocket() will not send while we have an Ack outstanding:
       console.warn(stime(this, `.onmessage: new message while un-ack'd!`), 
-        { ack_msg: this.message_to_ack.message.msgObject(true), wrapper: wrapper.msgObject(true), message: this.msgToString(message) })
+        { ack_msg: this.message_to_ack.message.msgString, wrapper: wrapper.msgString, message: this.msgToString(message) })
     }
 
     this.message_to_ack = new AckPromise(wrapper)
     if (!message) {
       console.warn(stime(this, `.onmessage: ignore message from wrapper`), wrapper)
-      let opts: GGMK = undefined
       this.sendCgNak('message invalid', { info: wrapper.msgType })
       return
     }
