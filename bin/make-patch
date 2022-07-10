@@ -1,23 +1,34 @@
 #!/bin/bash
 # $@: Proto file names
 # make-patch CgProto
+function protoc_gen_ts() {
+  protoc -I . --ts_out=. ${1}.proto
+}
+function makepatch() {
+  local Proto="$1"
+  # assert new '-patched', create new '.patch'
+  mv ${Proto}.ts ${Proto}-patched.ts
+  # create new .ts and new .patch
+  protoc_gen_ts ${Proto}
+  diff -patch ${Proto}.ts ${Proto}-patched.ts > ${Proto}.patch
+  # apply .patch; ASSERT !$(diff ${Proto}.ts ${Proto}-patched.ts)
+  patch ${Proto}.ts < ${Proto}.patch
+  touch -r ${Proto}-patched.ts ${Proto}.ts
+}
 function patchone() {
   local Proto="$1"
-  if [[ "" != "$2" ]] ; then echo "" > ${Proto}-patched.ts ; fi
-  if [[ $(diff -q ${Proto}.ts ${Proto}-patched.ts) ]] ; then
-    cp ${Proto}.ts ${Proto}-patched.ts
-    protoc -I . --ts_out=. ${Proto}.proto
-    diff -patch ${Proto}.ts ${Proto}-patched.ts > ${Proto}.patch
-    patch ${Proto}.ts < ${Proto}.patch
+  if [[ "$2" == "-c" || ${Proto}.proto -nt ${Proto}.ts ]] ; then protoc_gen_ts ${Proto} ; fi
+  if [[ ${Proto}.ts -nt ${Proto}.patch ]] ; then
+    makepatch ${Proto}
   else
     echo 'no diff' ${Proto}
   fi
 }
-function makepatch () {
-  local force=""
-  if [[ "$1" == "-f" ]] ; then force="$1"; shift; fi
+function doprotos () {
+  local flag=""
+  if [[ "$1" == "-c" ]] ; then flag="$1"; shift; fi
   local names="$@"
   if [[ "${names}" == "" ]] ; then names=$(cd src/proto; ls *.proto); fi
-  for p in $names ; do (cd src/proto; patchone "${p%.proto}" "$force"); done
+  for p in $names ; do (cd src/proto; patchone "${p%.proto}" "$flag"); done
 }
-makepatch "$@"
+doprotos "$@"
