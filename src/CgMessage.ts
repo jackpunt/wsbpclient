@@ -1,5 +1,5 @@
 import { json } from '@thegraid/common-lib'
-import { CgMessage as CgMsgBase } from './proto/CgProto.js'
+import { CgMsgBase } from './proto/CgProto.js'
 import { charString, pbMessage } from './types.js'
 import { CgType } from './proto/CgProto.js'
 import type { BinaryReader } from 'google-protobuf';
@@ -12,12 +12,12 @@ export class CgMessage extends CgMsgBase {
   /** (message.client_id === GROUP_ID) tell CgServer to cast to all group members (+/- nocc) */
   static GROUP_ID = 255 
   get msgPeek() {
-    let thss = (this as CgMessage), msg = thss.msg
-    return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
+    let msg = this.msg
+    return (msg !== undefined) ? `${this.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
   }
   get msgType() {
-    let thss = (this as CgMessage), type = thss.type
-    return (type !== CgType.ack) ? CgType[type] : thss.success ? 'Ack' : 'Nak'
+    let type = this.type
+    return (type !== CgType.ack) ? CgType[type] : this.success ? 'Ack' : 'Nak'
   }
   get expectsAck() {
     return [CgType.none, CgType.send, CgType.join].includes(this.type)
@@ -33,23 +33,23 @@ export class CgMessage extends CgMsgBase {
     return undefined
   }
   get msgObject(): CgMessageOptsX {
-    let thss: CgMessage = this
-    let msgType = thss.msgType  // every CgMessage has a msgType
+    let msgType = this.msgType  // every CgMessage has a msgType
     let msgObj: CgMessageOptsW = { msgType } // { msgType, ...this.toObject() }
-    if (thss.type == CgType.ack) msgObj.success = thss.success
-    if (thss.client_id !== undefined) msgObj.client_id = thss.client_id
-    if (thss.client_from !== undefined) msgObj.client_from = thss.client_from
-    if (thss.cause?.length > 0) msgObj.cause = thss.cause 
-    if (thss.info?.length > 0) msgObj.info = thss.info
-    if (thss.ident != 0) msgObj.ident = thss.ident
-    if (thss.group?.length > 0) msgObj.group = thss.group
-    if (thss.nocc != false) msgObj.nocc = thss.nocc
-    if (thss.msg?.length > 0) msgObj.msgStr = thss.msgStr
-    if (thss.acks?.length > 0) msgObj.acks = thss.acks
+    if (this.type == CgType.ack) msgObj.success = this.success
+    if (this.client_id !== undefined) msgObj.client_id = this.client_id
+    if (this.client_from !== undefined) msgObj.client_from = this.client_from
+    if (this.cause?.length > 0) msgObj.cause = this.cause 
+    if (this.info?.length > 0) msgObj.info = this.info
+    if (this.ident != 0) msgObj.ident = this.ident
+    if (this.group?.length > 0) msgObj.group = this.group
+    if (this.nocc != false) msgObj.nocc = this.nocc
+    if (this.msg?.length > 0) msgObj.msgStr = this.msgStr
+    if (this.acks?.length > 0) msgObj.acks = this.acks
     return msgObj
   }
   get msgString() { return json(this.msgObject) }
 
+  /** delegate to CgBaseMsg */
   static override deserialize(data: Uint8Array | BinaryReader) {
     if (data == undefined) return undefined as CgMessage
     let newMsg = CgMsgBase.deserialize(data) as CgMessage

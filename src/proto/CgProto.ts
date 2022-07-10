@@ -11,7 +11,7 @@ export enum CgType {
     join = 3,
     leave = 4
 }
-export class CgMessage extends pb_1.Message {
+export class CgMsgBase extends pb_1.Message {
     #one_of_decls: number[][] = [];
     constructor(data?: any[] | {
         type?: CgType;
@@ -24,7 +24,7 @@ export class CgMessage extends pb_1.Message {
         msg?: Uint8Array;
         group?: string;
         nocc?: boolean;
-        acks?: CgMessage[];
+        acks?: CgMsgBase[];
     }) {
         super();
         pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [11], this.#one_of_decls);
@@ -125,9 +125,9 @@ export class CgMessage extends pb_1.Message {
         pb_1.Message.setField(this, 10, value);
     }
     get acks() {
-        return pb_1.Message.getRepeatedWrapperField(this, CgMessage, 11) as CgMessage[];
+        return pb_1.Message.getRepeatedWrapperField(this, CgMsgBase, 11) as CgMsgBase[];
     }
-    set acks(value: CgMessage[]) {
+    set acks(value: CgMsgBase[]) {
         pb_1.Message.setRepeatedWrapperField(this, 11, value);
     }
     static fromObject(data: {
@@ -141,9 +141,9 @@ export class CgMessage extends pb_1.Message {
         msg?: Uint8Array;
         group?: string;
         nocc?: boolean;
-        acks?: ReturnType<typeof CgMessage.prototype.toObject>[];
-    }): CgMessage {
-        const message = new CgMessage({});
+        acks?: ReturnType<typeof CgMsgBase.prototype.toObject>[];
+    }): CgMsgBase {
+        const message = new CgMsgBase({});
         if (data.type != null) {
             message.type = data.type;
         }
@@ -175,7 +175,7 @@ export class CgMessage extends pb_1.Message {
             message.nocc = data.nocc;
         }
         if (data.acks != null) {
-            message.acks = data.acks.map(item => CgMessage.fromObject(item));
+            message.acks = data.acks.map(item => CgMsgBase.fromObject(item));
         }
         return message;
     }
@@ -191,7 +191,7 @@ export class CgMessage extends pb_1.Message {
             msg?: Uint8Array;
             group?: string;
             nocc?: boolean;
-            acks?: ReturnType<typeof CgMessage.prototype.toObject>[];
+            acks?: ReturnType<typeof CgMsgBase.prototype.toObject>[];
         } = {};
         if (this.type != null) {
             data.type = this.type;
@@ -224,7 +224,7 @@ export class CgMessage extends pb_1.Message {
             data.nocc = this.nocc;
         }
         if (this.acks != null) {
-            data.acks = this.acks.map((item: CgMessage) => item.toObject());
+            data.acks = this.acks.map((item: CgMsgBase) => item.toObject());
         }
         return data;
     }
@@ -253,12 +253,12 @@ export class CgMessage extends pb_1.Message {
         if (this.nocc != false)
             writer.writeBool(10, this.nocc);
         if (this.acks.length)
-            writer.writeRepeatedMessage(11, this.acks, (item: CgMessage) => item.serialize(writer));
+            writer.writeRepeatedMessage(11, this.acks, (item: CgMsgBase) => item.serialize(writer));
         if (!w)
             return writer.getResultBuffer();
     }
-    static deserialize(bytes: Uint8Array | pb_1.BinaryReader): CgMessage {
-        const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new CgMessage();
+    static deserialize(bytes: Uint8Array | pb_1.BinaryReader): CgMsgBase {
+        const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new CgMsgBase();
         while (reader.nextField()) {
             if (reader.isEndGroup())
                 break;
@@ -294,7 +294,7 @@ export class CgMessage extends pb_1.Message {
                     message.nocc = reader.readBool();
                     break;
                 case 11:
-                    reader.readMessage(message.acks, () => pb_1.Message.addToRepeatedWrapperField(message, 11, CgMessage.deserialize(reader), CgMessage));
+                    reader.readMessage(message.acks, () => pb_1.Message.addToRepeatedWrapperField(message, 11, CgMsgBase.deserialize(reader), CgMsgBase));
                     break;
                 default: reader.skipField();
             }
@@ -304,7 +304,7 @@ export class CgMessage extends pb_1.Message {
     serializeBinary(): Uint8Array {
         return this.serialize();
     }
-    static override deserializeBinary(bytes: Uint8Array): CgMessage {
-        return CgMessage.deserialize(bytes);
+    static override deserializeBinary(bytes: Uint8Array): CgMsgBase {
+        return CgMsgBase.deserialize(bytes);
     }
 }

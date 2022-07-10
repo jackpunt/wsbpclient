@@ -17,7 +17,10 @@ function makepatch() {
 }
 function patchone() {
   local Proto="$1"
-  if [[ "$2" == "-c" || ${Proto}.proto -nt ${Proto}.ts ]] ; then protoc_gen_ts ${Proto} ; fi
+  if [[ "$2" == "-c" || ${Proto}.proto -nt ${Proto}.ts ]] ; then 
+    protoc_gen_ts ${Proto}
+    patch ${Proto}.ts < ${Proto}.patch
+  fi
   if [[ ${Proto}.ts -nt ${Proto}.patch ]] ; then
     makepatch ${Proto}
   else

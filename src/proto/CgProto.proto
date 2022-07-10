@@ -11,7 +11,7 @@ enum CgType {
   leave = 4;  // group, client_id, cause are optional [use client_id, group from socket]
 }
 /** Group protocol and carry nested message to send. */
-message CgMessage {
+message CgMsgBase {
   CgType type = 1;       // indicates which fields are populated:
   int32  client_id = 2;  // {leave:client-leaving, send:ack?: to-client/group}; join responds with ack(client_id)
   bool   success = 3;    // ack: true/false
@@ -22,5 +22,5 @@ message CgMessage {
   bytes  msg = 8;        // send: nested pbMessage<INNER> (also in Ack!)
   string group = 9;      // leave, join: "group-name"
   bool   nocc  = 10;      // set true to NOT get copy of CgType.send
-  repeated CgMessage acks = 11; // Acks in response to send->group [TBD]
+  repeated CgMsgBase acks = 11; // Acks in response to send->group [TBD: when some clients Ack & others Nak]
 }

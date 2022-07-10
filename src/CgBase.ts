@@ -1,6 +1,6 @@
 import { json } from "@thegraid/common-lib";
 import { BaseDriver, WebSocketBase } from "./BaseDriver.js";
-import { CgMessage, CgMessageOpts, CgType } from "./CgProto.js";
+import { CgMessage, CgMessageOpts, CgType } from "./CgMessage.js";
 import { className, CLOSE_CODE, DataBuf, EzPromise, pbMessage, stime, WebSocketDriver } from "./types.js";
 
 /** a DOM event of type 'leave'. emit when (for ex) dnstream.close */

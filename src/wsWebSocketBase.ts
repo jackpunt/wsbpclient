@@ -2,7 +2,7 @@ import { stime } from '@thegraid/common-lib'
 import type { EzPromise } from '@thegraid/ezpromise'
 import type { WebSocket as ws$WebSocket } from "ws"
 
-import {CgMessage, CgType} from './CgProto.js'
+import {CgMessage, CgType} from './CgMessage.js'
 import { AnyWSD, AWebSocket, CgClient, CloseInfo, close_fail, DataBuf, normalClose, pbMessage, readyState, WebSocketBase } from './index.js'
 import { wsWebSocket } from './wsWebSocket.js'
 
@@ -63,7 +63,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
     })
     return this
   }
-  /** return this.on('message', handle, {once: true}) */
+  /** for CgServer.spec.ts: return this.on('message', handle, {once: true}) */
   listenFor(type: CgType, handle: (msg: CgMessage)=>void = (msg)=>{}): EventListener {
     let listener = (ev: Event) => {
       let data = (ev as MessageEvent).data as DataBuf<CgMessage>
@@ -82,7 +82,7 @@ export class wsWebSocketBase<I extends pbMessage, O extends pbMessage> extends W
 /** CgClient to Log and Ack msgs recv'd; log .onLeave() */
 export class TestCgClient<O extends CgMessage> extends CgClient<O> implements AnyWSD {
   override eval_send(message: CgMessage) {
-    let inner_msg = CgMessage.deserialize(message.msg)
+    let inner_msg = this.deserialize(message.msg)
     this.ll(1) && console.log(stime(this, `.eval_send[${this.client_id}]`), inner_msg.msgString)
     this.sendAck(`send-rcvd-${this.client_id}`, {client_id: message.client_from})
   }
@@ -99,7 +99,7 @@ export class TestCgClient<O extends CgMessage> extends CgClient<O> implements An
 export class TestCgClientR<O extends CgMessage> extends TestCgClient<O> {
   override eval_send(message: CgMessage) {
     this.ll(1) && console.log(stime(this, `.eval_send[${message.client_from} -> ${this.client_id}]`), this.innerMessageString(message))
-    let inner_msg = CgMessage.deserialize(message.msg) // inner CgMessage, type==CgType.none
+    let inner_msg = this.deserialize(message.msg) // inner CgMessage, type==CgType.none
     if (inner_msg.type === CgType.none && inner_msg.cause == "NakMe") {
       this.sendNak(inner_msg.cause, { client_id: message.client_from })
       return
