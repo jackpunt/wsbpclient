@@ -133,7 +133,11 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
    * @param message a GgMessage to be wrapped
    * @param cgOpts -- if not supplied, the default for nocc: is undefined, so ref is not self-copied
    */
-  send_message(message: InnerMessage, cgOpts?: CgMessageOpts, ackPromise?: AckPromise): AckPromise {
+  send_message(message: InnerMessage, cgOpts?: CgMessageOpts): AckPromise {
+    console.log(stime(this, `.send_message:`), message.msgString, json(cgOpts))
+    return this.send_message_ack(message, cgOpts, undefined)
+  }
+  send_message_ack(message: InnerMessage, cgOpts?: CgMessageOpts, ackPromise?: AckPromise) {
     // TODO: default cgOpts = { nocc: true }
     // note: sendCgAck() & sendCgNak() are not processed by this code.
     // queue new requests until previous request is ack'd:
@@ -142,7 +146,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
         { message: this.msgToString(message), message_to_ack: this.message_to_ack.message.msgString })
       if (!ackPromise) ackPromise = new AckPromise(undefined) // undefined indicates still pending
       this.message_to_ack.then(() => {
-        this.send_message(message, cgOpts, ackPromise) // ignore return value (either ackPromise OR .ack_promise)
+        this.send_message_ack(message, cgOpts, ackPromise) // ignore return value (either ackPromise OR .ack_promise)
       })
       return ackPromise // message queued to be sent
     }
@@ -296,7 +300,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
  * Eg: class HgReferee extends GgRefMixin<HgMessage, HgClient>(HgClient) {}
  */
 export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
-  return class RefereeBase extends Base {
+  return class GgRefBase extends Base {
     get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
     /** GgRefMixin.RefereeBase() */
     constructor(...args: any[]) { 
@@ -327,12 +331,12 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
 
     /** listener for LeaveEvent, from dnstream: CgReferee */
     client_leave(event: Event | LeaveEvent) {
-      this.ll(2) && console.log(stime(this, ".client_leave:"), event)
       let { client_id, cause, group } = event as LeaveEvent
+      this.ll(0) && console.log(stime(this, ".client_leave:"), { client_id, cause, group })
       let rindex = this.roster.findIndex(pr => pr.client === client_id)
-      let pr: rost = this.roster[rindex]
+      if (rindex < 0) return // group member was not a Game player
+      let pr: rost = this.roster.splice(rindex, 1)[0]
       // remove from roster, so they can join again! [or maybe just nullify rost.name?]
-      if (rindex >= 0) this.roster.splice(rindex, 1)
       this.ll(1) && console.log(stime(this, `.client_leave: ${group}; roster =`), this.roster.concat())
       // tell the other players: send_join(roster)
       this.send_roster(pr, 'leaveGame')  // noting that 'pr' will not appear in roster...
@@ -394,10 +398,10 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       this.send_join(name, { client, player, roster }, { info }) // fromReferee to Group.
     }
     /** send join with roster to everyone. */
-  override send_join(name: string, ggOpts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
-    let message = this.make_join(name, ggOpts)
+    override send_join(name: string, ggOpts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
+      let message = this.make_join(name, ggOpts)
       this.ll(1) && console.log(stime(this, ".send_joinGame"), this.msgToString(message))
-      return this.send_message(message, { nocc: true, ...cgOpts }) // from Referee
+      return this.send_message(message, { client_id: CgMessage.GROUP_ID, nocc: true, ...cgOpts }) // from Referee
     }
   }
 }

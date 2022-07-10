@@ -1,17 +1,23 @@
 #!/bin/bash
-# $1: Proto file name
+# $@: Proto file names
 # make-patch CgProto
-function makepatch() {
+function patchone() {
   local Proto="$1"
+  if [[ "" != "$2" ]] ; then echo "" > ${Proto}-patched.ts ; fi
   if [[ $(diff -q ${Proto}.ts ${Proto}-patched.ts) ]] ; then
     cp ${Proto}.ts ${Proto}-patched.ts
-    #npm run protots; 
     protoc -I . --ts_out=. ${Proto}.proto
     diff -patch ${Proto}.ts ${Proto}-patched.ts > ${Proto}.patch
-    #npm run patch-proto
     patch ${Proto}.ts < ${Proto}.patch
   else
     echo 'no diff' ${Proto}
   fi
 }
-for p in "$@" ; do (cd src/proto; makepatch "$p"); done
+function makepatch () {
+  local force=""
+  if [[ "$1" == "-f" ]] ; then force="$1"; shift; fi
+  local names="$@"
+  if [[ "${names}" == "" ]] ; then names=$(cd src/proto; ls *.proto); fi
+  for p in $names ; do (cd src/proto; patchone "${p%.proto}" "$force"); done
+}
+makepatch "$@"

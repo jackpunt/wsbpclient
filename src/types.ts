@@ -32,11 +32,13 @@ export enum CLOSE_CODE {
   Abnormal = 1006, // closed by browser, socket error?
   PolicyViolation	= 1008,
 }
-export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED">
-// CONNECTING = 0
-// OPEN = 1
-// CLOSING = 2
-// CLOSED = 3
+//export type READY_STATE = Pick<WebSocket, "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED">
+export enum READY_STATE {
+  CONNECTING = 0,
+  OPEN = 1,
+  CLOSING = 2,
+  CLOSED = 3,
+}
 export type CloseInfo = { code: number, reason: string }
 export function normalClose(reason:string): CloseInfo { return {code: CLOSE_CODE.NormalClosure, reason: reason}}
 export const close_normal: CloseInfo = {code: CLOSE_CODE.NormalClosure, reason: "normal_closure" }

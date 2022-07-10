@@ -89,8 +89,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     let idata = msg?.msg as DataBuf<O>
     if (idata) {
       let ups = (this.upstream as BaseDriver<O, never>)
-      let imsg = ups?.msgToString(ups?.deserialize(idata)) || 'no upstream.deserialize'
-      return { msgObj, str, imsg }
+      let msg = ups?.deserialize(idata)
+      return (msg == undefined) ? 'no upstream.deserialize' : ups.msgToString(msg)
     }
     return { msgObj }
   }
@@ -105,7 +105,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   override onerror(ev: ErrorEvent) {
     super.onerror(ev)    // maybe invoke sentError(ev)
-    this.promise_of_ack.reject(ev)  // if not already resolved...
+    this.promise_of_ack.reject(`CgBase.onerror(${ev})`)  // if not already resolved...
   }
   /**
    * 
@@ -114,7 +114,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    */
   override onclose(ev: CloseEvent) {
     this.ll(1) && console.log(stime(this, " CgBase.onclose:"), {code: ev.code, reason: ev.reason, wasClean: ev.wasClean})
-    this.promise_of_ack.reject(ev.reason)
+    this.promise_of_ack.reject(`CgBase.onclose(${ev.reason})`)
     super.onclose(ev) // send to upstream.onclose(ev)
   }
   // opts?: Exclude<CgMessageOpts, "cause" | "type">
@@ -174,6 +174,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
       this.ack_promise.then((ack) => {
         this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
         this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
+      }, (reason) => {
+        this.ll(-1) && console.error(stime(this, `.sendToSocket[${this.client_id}] deferred p_ack.rejected(${reason})`))
       })
       return ackPromise  // with message un-sent
     }
@@ -188,6 +190,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     if (message.expectsAck) {
       this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
+      ackPromise.then((ack: CgMessage)=>{
+        this.ll(1) && console.error(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.filled(${ack.msgString})`))
+      }, (reason)=>{
+        this.ll(-1) && console.error(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.rejected(${reason})`))
+      }).catch((reason) => {
+        this.ll(-1) && console.error(stime(this, `.sendToSocket[${this.client_id}] p_ack.catch(${reason})`))
+      })
     } else {
       ackPromise.fulfill(undefined)    // no Ack is coming
     }

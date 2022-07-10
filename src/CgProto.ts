@@ -9,6 +9,8 @@ export { CgType };
 
 // add methods to the objects created by new CgMessage()
 export class CgMessage extends CgMsgBase {
+  /** (message.client_id === GROUP_ID) tell CgServer to cast to all group members (+/- nocc) */
+  static GROUP_ID = 255 
   get msgPeek() {
     let thss = (this as CgMessage), msg = thss.msg
     return (msg !== undefined) ? `${thss.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
@@ -20,34 +22,40 @@ export class CgMessage extends CgMsgBase {
   get expectsAck() {
     return [CgType.none, CgType.send, CgType.join].includes(this.type)
   }
+  /** this.msg ? this.msgPeek+strings : undefined; this.msg defined for Ack/Nak & Send */
   get msgStr() {
     let msg = (this as CgMessage).msg
-    if (msg === undefined) return undefined
-    let bytes = msg.slice(1), strs = []
-    bytes.forEach(char => strs.push(charString(char)))
-    return `${this.msgPeek}${":".concat(...strs)}]`
+    if (msg?.length > 0) {
+      let bytes = msg.slice(1), strs = [] // unshift the first byte... [the 'type' byte?]?
+      bytes.forEach(char => strs.push(charString(char)))
+      return `${this.msgPeek}${":".concat(...strs)}]`
+    }
+    return undefined
   }
   get msgObject(): CgMessageOptsX {
     let thss: CgMessage = this
     let msgType = thss.msgType  // every CgMessage has a msgType
-    let msgObj: CgMessageOptsW = { msgType }
+    let msgObj: CgMessageOptsW = { msgType } // { msgType, ...this.toObject() }
+    if (thss.type == CgType.ack) msgObj.success = thss.success
     if (thss.client_id !== undefined) msgObj.client_id = thss.client_id
-    if (thss.success !== undefined) msgObj.success = thss.success
     if (thss.client_from !== undefined) msgObj.client_from = thss.client_from
-    if (thss.cause !== undefined) msgObj.cause = thss.cause 
-    if (thss.info !== undefined) msgObj.info = thss.info
-    if (thss.ident !== undefined) msgObj.ident = thss.ident
-    if (thss.group !== undefined) msgObj.group = thss.group
-    if (thss.nocc !== undefined) msgObj.nocc = thss.nocc
-    if (thss.msg !== undefined) msgObj.msgStr = thss.msgStr
+    if (thss.cause?.length > 0) msgObj.cause = thss.cause 
+    if (thss.info?.length > 0) msgObj.info = thss.info
+    if (thss.ident != 0) msgObj.ident = thss.ident
+    if (thss.group?.length > 0) msgObj.group = thss.group
+    if (thss.nocc != false) msgObj.nocc = thss.nocc
+    if (thss.msg?.length > 0) msgObj.msgStr = thss.msgStr
     if (thss.acks?.length > 0) msgObj.acks = thss.acks
     return msgObj
   }
   get msgString() { return json(this.msgObject) }
 
   static override deserialize(data: Uint8Array | BinaryReader) {
+    if (data == undefined) return undefined as CgMessage
     let newMsg = CgMsgBase.deserialize(data) as CgMessage
-    Object.setPrototypeOf(newMsg, CgMessage.prototype)
+    if (newMsg instanceof CgMsgBase) {
+      Object.setPrototypeOf(newMsg, CgMessage.prototype)
+    }
     return newMsg
   }
 }

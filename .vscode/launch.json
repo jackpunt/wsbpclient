@@ -9,6 +9,7 @@
       "name": "Launch testRef.js",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/test/dist/test/testRef.js",
+      "runtimeArgs": ["${workspaceFolder}/test/dist/test/testGg.js", "Xhost", "game5"],
       "request": "launch",
       "skipFiles": [
         "<node_internals>/**"
@@ -18,6 +19,7 @@
     {
       "name": "Launch testGg.js",
       "program": "${workspaceFolder}/test/dist/test/testGg.js",
+      "runtimeArgs": ["${workspaceFolder}/test/dist/test/testGg.js", "Xhost", "game5"],
       "request": "launch",
       "skipFiles": [
         "<node_internals>/**"

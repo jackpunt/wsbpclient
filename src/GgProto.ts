@@ -24,6 +24,10 @@ export class GgMessage extends GgMsgBase {
   get msgObject(): GgMessageOptsX {
     let msgObject = this?.toObject() as GgMessageOptsW
     msgObject.msgType = `${this.msgType}(${this.type})`
+    if (msgObject.name.length == 0) delete msgObject.name
+    if (msgObject.json.length == 0) delete msgObject.json
+    if (msgObject.inform.length == 0) delete msgObject.inform
+    if (msgObject.player == 0) delete msgObject.player // TODO: assign player=1 & player=2 ... allPlayers[!]
     if (!this.roster) delete msgObject.roster // bug in pbMessage.toObject()
     delete msgObject.type
     return msgObject
@@ -31,8 +35,11 @@ export class GgMessage extends GgMsgBase {
   get msgString() { return json(this.msgObject) }
 
   static override deserialize(data: Uint8Array | BinaryReader) {
+    if (data == undefined) return undefined as GgMessage
     let newMsg = GgMsgBase.deserialize(data) as GgMessage
-    Object.setPrototypeOf(newMsg, GgMessage.prototype)
+    if (newMsg instanceof GgMsgBase) {
+      Object.setPrototypeOf(newMsg, GgMessage.prototype)
+    }
     return newMsg
   }
 }

@@ -91,7 +91,7 @@ function openAndClose(logMsg = '') {
   }
   startRef(async (wsb: wsWebSocketBase<any, any>, cgc) => {
     setTimeout(async () => {
-      console.log(stime('startRef: Now start clients'))
+      console.log(stime(`startRef: Now start clients: ${nclients} -----------------`))
       for (let n = 0; n < nclients; n++) {
         await makeClientAndRun()
       }

@@ -27,10 +27,10 @@ export class TestGgClient extends GgClient<GgMessage> {
     this.cgbase.log = 1
   }
   instId = ++TestGgClient.instId
-  logMsg = `TestGg-${this.instId}`
+  logMsg = `TestGgClient#${this.instId}`
   errorwsb(wsb, logmsg = this.logMsg) {
     return (ev: any) => {
-      console.error(stime(this, `errorwsb: ${logmsg} ${AT.ansiText(['red'], 'wsb error:')}`), ev, wsb.closeState);
+      console.error(stime(this, `.errorwsb: ${logmsg} ${AT.ansiText(['red'], 'wsb error:')}`), ev, wsb.closeState);
     }
   }
   closewsb(wsb: WebSocketBase<pbMessage, pbMessage>, logmsg = this.logMsg) {
@@ -102,44 +102,7 @@ export class TestGgRef extends GgRefMixin<GgMessage, typeof TestGgClient>(TestGg
       this.log = 1
       this.cgbase.log = 1
       this.wsbase.log = 1
-      this.cgbase.addEventListener('leave', (ev) => {
-        this.client_leave(ev as unknown as LeaveEvent) // handled in GgRefMixin.RefereeBase
-      })
     }, cgBaseC as typeof CgBase);
-    this.cgBaseType = cgBaseC as typeof CgBase
-  }
-  override cgl(logMsg?: string, more?: Listeners): Listeners {
-   return super.cgl(logMsg, {
-      leave: (ev: any) => {
-        this.client_leave(ev) // handled in GgRefMixin.RefereeBase
-      }
-    })   
-  }
-  /** listener for LeaveEvent, from dnstream: CgReferee */
-  override client_leave(event: Event | LeaveEvent) {
-    let { client_id, cause, group } = event as LeaveEvent
-    this.ll(0) && console.log(stime(this, ".client_leave:"), { client_id, cause, group })
-    let rindex = this.roster.findIndex(pr => pr.client === client_id)
-    if (rindex < 0) return // group member was not a Game player
-    // remove from roster, so they can join again! [or maybe just nullify rost.name?]
-    let pr = this.roster.splice(rindex, 1)[0]
-    this.ll(0) && console.log(stime(this, `.client_leave: ${group}; send_roster =`), this.roster.concat())
-    // tell the other players: send_join(roster)
-    this.send_roster(pr, 'leaveGameRoster')  // noting that 'pr' will not appear in roster...
-  }
-  override joinGroup(url: string, group: string, onOpen: (ggClient: GgClient<GgMessage>) => void, onJoin?: (ack: CgMessage) => void): typeof this {
-    // Stack: GgClient=this=GgReferee; CgClient=RefGgBase; WebSocketBase -> url
-    this.connectStack(url, (refClient: GgClient<GgMessage>) => {
-      onOpen(refClient)
-      refClient.cgbase.send_join(group, 0, "referee").then((ack: CgMessage) => {
-        this.ll(1) && console.log(stime(this, `.joinGroup: ack =`), ack)
-        this.roster.push({ client: ack.client_id, player: this.refid, name: "referee" })
-        onJoin && onJoin(ack)
-      })
-    })
-    let dnstream = (this.dnstream as CgBase<GgMessage>) // a [Ref]CgBase
-    dnstream.addEventListener('leave', (msg) => this.client_leave(msg))
-    console.log(stime(this, `.joinGroup: dnstream =`), className(dnstream))
-    return this
+    this.cgBaseType = cgBaseC as typeof CgBase // for reference in debugger?
   }
 }
