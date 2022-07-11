@@ -1,6 +1,6 @@
 import { AT, json } from "@thegraid/common-lib";
 import { CgBase, GgClient, type pbMessage, CgMessage, stime, type WebSocketBase, readyState, LeaveEvent, GgRefMixin, type rost, className, addEnumTypeString } from "../src/index.js";
-import { GgMessage, GgType } from "./GgMessage.js";
+import { GgMessage, GgType } from "../src/GgMessage.js";
 import { wsWebSocketBase } from "../src/wsWebSocketBase.js";
 declare module '../src/GgMessage' {
   interface GgMessage {

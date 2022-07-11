@@ -81,12 +81,13 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     this.parseEval(this.deserialize(data))
   }
   override logData(data: DataBuf<CgMessage>): {} | string {
-    let str = this.stringData(data)
+    //let str = this.stringData(data)
     let msg = this.deserialize(data)
+    if (msg == undefined) return { msgObj: 'deserialize failed' }
     //let msgType = msg.msgType // msgType may be undefined 
     //let ary = msg?.['array']?.toString()
-    let msgObj = msg?.msgString       //, toObj = msg?.toObject()
-    let idata = msg?.msg as DataBuf<O>
+    let msgObj = msg.msgString       //, toObj = msg?.toObject()
+    let idata = msg.msg as DataBuf<O>
     if (idata) {
       let ups = (this.upstream as BaseDriver<O, never>)
       let msg = ups?.deserialize(idata)

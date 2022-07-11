@@ -6,7 +6,7 @@ import { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 
 import type net from 'net'
 import { WebSocket as ws$WebSocket } from "ws"
-import { GgMessage } from "./GgMessage.js"
+import { GgMessage } from "../src/GgMessage.js"
 //net.Socket
 export function wssPort(wsb: wsWebSocketBase<pbMessage, pbMessage>, def: number = undefined) {
   let wss = wsb.ws['wss']

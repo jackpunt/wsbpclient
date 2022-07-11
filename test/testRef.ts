@@ -1,9 +1,9 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
-import { GgMessage, GgType } from "./GgMessage.js"
-import { CgClient, CgMessage, CgType, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
+import { GgMessage, GgType } from "../src/GgMessage.js"
+import { CgClient, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
 import type { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 import { TestGgClient, TestGgRef } from "./testClasses.js"
-import { addListeners, closeStream, listTCPsockets, makeCgClient, wssPort } from './testFuncs.js'
+import { addListeners, closeStream, listTCPsockets, wssPort } from './testFuncs.js'
 
 let host = argVal('host', 'game7', 'X')  // jest-compatible: Xhost game6
 let portStr = argVal('port', '8447', 'X'), port = Number.parseInt(portStr)

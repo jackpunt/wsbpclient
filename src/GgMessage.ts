@@ -20,7 +20,10 @@ type MsgKeys = Exclude<keyof GgMsgBase, Partial<keyof pbMessage> | "serialize">
 type ConsType = { -readonly [key in keyof Partial<Pick<GgMsgBase, MsgKeys>>] : GgMsgBase[key] }
 type ObjType = ReturnType<GgMsgBase['toObject']>
 
-export class GgMessage extends MsgTypeMixin(GgMsgBase) {
+// https://github.com/microsoft/TypeScript/issues/41347
+// TS-4.6.2 does not allow Mixins to have override-able get accessors [d.ts cannot tell property from accessor]
+// so we will forego 'extends MsgTypeMixin(GgMsgBase)' until that is fixed (fixed May 2022...)
+export class GgMessage extends (GgMsgBase) {
   constructor(obj: ConsType) {
     super(obj)
     console.log(this.toObject().player)
@@ -28,20 +31,18 @@ export class GgMessage extends MsgTypeMixin(GgMsgBase) {
   declare toObject: () => ReturnType<GgMsgBase['toObject']>
   //override toObject(): ReturnType<GgMsgBase['toObject']> { return super.toObject()}
   client_from: number
-  //get msgType() { return GgType[this.type] }
-  override get msgObject(): GgMessageOptsX {
-    let thss = this as GgMessage
-    thss
+  get msgType() { return GgType[this.type] }
+  get msgObject(): GgMessageOptsX {
     let msgObject = { msgType: `${this.msgType}(${this.type})`, ...this?.toObject() }
     if (msgObject.name.length == 0) delete msgObject.name
     if (msgObject.json.length == 0) delete msgObject.json
     if (msgObject.inform.length == 0) delete msgObject.inform
     if (msgObject.player == 0) delete msgObject.player // TODO: assign player=1 & player=2 ... allPlayers[!]
-    if (!thss.roster) delete msgObject.roster // bug in pbMessage.toObject()
+    if (!this.roster) delete msgObject.roster // bug in pbMessage.toObject()
     delete msgObject.type
     return msgObject
   }
-  //get msgString() { return json(this.msgObject) }
+  get msgString() { return json(this.msgObject) }
 
   static override deserialize<GgMessage>(data: Uint8Array) {
     let newMsg = undefined as GgMessage

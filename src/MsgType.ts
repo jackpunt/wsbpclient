@@ -70,38 +70,38 @@ export function MsgTypeMixin<TBase extends Constructor<msgWithType>>(Base: TBase
     }
   }
 }
-type CgMsgKeys = Exclude<keyof CgMsgBase, keyof pbMessage | "serialize">
-type CgObjType = ReturnType<CgMsgBase['toObject']>
-class MyCgMessage extends MsgTypeMixin(CgMsgBase) {
+// type CgMsgKeys = Exclude<keyof CgMsgBase, keyof pbMessage | "serialize">
+// type CgObjType = ReturnType<CgMsgBase['toObject']>
+// class MyCgMessage extends MsgTypeMixin(CgMsgBase) {
   
-  constructor(obj: { -readonly [key in keyof Partial<Pick<CgMsgBase, CgMsgKeys>>] : CgMsgBase[key] }) {
-    super()
-    console.log(this.toObject())
-  }
-  override toObject(includeInstance?: boolean): ReturnType<CgMsgBase['toObject']> { return super.toObject() }
+//   constructor(obj: { -readonly [key in keyof Partial<Pick<CgMsgBase, CgMsgKeys>>] : CgMsgBase[key] }) {
+//     super()
+//     //console.log(this.toObject())
+//   }
+//   override toObject(includeInstance?: boolean): ReturnType<CgMsgBase['toObject']> { return super.toObject() }
 
-  //override toObject(includeInstance?: boolean): CgObjType { return super.toObject() }
-  override get msgObject(): ReturnType<CgMsgBase['toObject']> {
-    return super.msgObject
-  }
-}
-const cgm = new MyCgMessage({type: CgType.join})
+//   //override toObject(includeInstance?: boolean): CgObjType { return super.toObject() }
+//   override get msgObject(): ReturnType<CgMsgBase['toObject']> {
+//     return super.msgObject
+//   }
+// }
+// const cgm = new MyCgMessage({type: CgType.join})
 
-type GgMsgKeys = Exclude<keyof GgMsgBase, Partial<keyof pbMessage> | "serialize">
-type GgConsObj = { -readonly [key in keyof Partial<Pick<GgMsgBase, GgMsgKeys>>] : GgMsgBase[key] }
-type GgObjType = ReturnType<GgMsgBase['toObject']>
+// type GgMsgKeys = Exclude<keyof GgMsgBase, Partial<keyof pbMessage> | "serialize">
+// type GgConsObj = { -readonly [key in keyof Partial<Pick<GgMsgBase, GgMsgKeys>>] : GgMsgBase[key] }
+// type GgObjType = ReturnType<GgMsgBase['toObject']>
 
-class MyGgMessage extends MsgTypeMixin(GgMsgBase) {
-  constructor(obj: { -readonly [key in keyof Partial<Pick<GgMsgBase, GgMsgKeys>>] : GgMsgBase[key] }) {
-    super(obj)
-  }
-  override toObject(includeInstance?: boolean): ReturnType<GgMsgBase['toObject']> { return super.toObject() }
-  override get msgObject(): ReturnType<GgMsgBase['toObject']> {
-    let n = (this as MyGgMessage).toObject(), k=n
-    return super.msgObject
-  }
-}
-const ggm = new MyGgMessage({type: GgType.chat})
-let type = ggm.type, mg = ggm.msgObject
-const x = {ggm, type, mg}
+// class MyGgMessage extends MsgTypeMixin(GgMsgBase) {
+//   constructor(obj: { -readonly [key in keyof Partial<Pick<GgMsgBase, GgMsgKeys>>] : GgMsgBase[key] }) {
+//     super(obj)
+//   }
+//   override toObject(includeInstance?: boolean): ReturnType<GgMsgBase['toObject']> { return super.toObject() }
+//   override get msgObject(): ReturnType<GgMsgBase['toObject']> {
+//     let n = (this as MyGgMessage).toObject(), k=n
+//     return super.msgObject
+//   }
+// }
+// const ggm = new MyGgMessage({type: GgType.chat})
+// let type = ggm.type, mg = ggm.msgObject
+// const x = {ggm, type, mg}
 
