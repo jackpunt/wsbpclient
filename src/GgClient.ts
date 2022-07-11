@@ -1,6 +1,8 @@
 import { json } from "@thegraid/common-lib";
-import { GgMessageOpts, GgMessage, GgType, rost, Rost, GgMessageOptsX } from "./GgProto.js";
+import type { BinaryReader } from "google-protobuf";
+import { GgMessageOpts, GgMessage, GgType, rost, Rost, GgMessageOptsX } from "./GgMessage.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
+import { CgMsgBase } from "./proto/CgProto.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -27,7 +29,6 @@ interface GgMessageX extends pbMessage {
   inform: string;     // information string for logging/debugging
   /** type as a string (vs enum value) */
   get msgType(): string // typically injected into pbMessage<Ioc extends GgMessage>
-  // declare module "src/IoCproto" { interface IoC { msgType: string }}; addEnumTypeString(IoC)
 }
 
 // try make a Generic GgClient that wraps a CgBase for a given GgMessage/pbMessage type.
@@ -302,7 +303,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
 export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
   return class GgRefBase extends Base {
     get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
-    /** GgRefMixin.RefereeBase() */
+    /** GgRefMixin.GgRefBase() */
     constructor(...args: any[]) { 
       super(...args)  // invoke the given Base constructor: GgClientForRef
       return

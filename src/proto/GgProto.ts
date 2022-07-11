@@ -124,7 +124,7 @@ export class Rost extends pb_1.Message {
         return Rost.deserialize(bytes);
     }
 }
-export class GgMessage extends pb_1.Message {
+export class GgMsgBase extends pb_1.Message {
     #one_of_decls: number[][] = [];
     constructor(data?: any[] | {
         type?: GgType;
@@ -222,8 +222,8 @@ export class GgMessage extends pb_1.Message {
         inform?: string;
         roster?: ReturnType<typeof Rost.prototype.toObject>[];
         client_to?: number;
-    }): GgMessage {
-        const message = new GgMessage({});
+    }): GgMsgBase {
+        const message = new GgMsgBase({});
         if (data.type != null) {
             message.type = data.type;
         }
@@ -310,8 +310,8 @@ export class GgMessage extends pb_1.Message {
         if (!w)
             return writer.getResultBuffer();
     }
-    static deserialize(bytes: Uint8Array | pb_1.BinaryReader): GgMessage {
-        const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new GgMessage();
+    static deserialize(bytes: Uint8Array | pb_1.BinaryReader): GgMsgBase {
+        const reader = bytes instanceof pb_1.BinaryReader ? bytes : new pb_1.BinaryReader(bytes), message = new GgMsgBase();
         while (reader.nextField()) {
             if (reader.isEndGroup())
                 break;
@@ -348,7 +348,7 @@ export class GgMessage extends pb_1.Message {
     serializeBinary(): Uint8Array {
         return this.serialize();
     }
-    static override deserializeBinary(bytes: Uint8Array): GgMessage {
-        return GgMessage.deserialize(bytes);
+    static override deserializeBinary(bytes: Uint8Array): GgMsgBase {
+        return GgMsgBase.deserialize(bytes);
     }
 }

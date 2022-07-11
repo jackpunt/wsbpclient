@@ -1,0 +1,4 @@
+syntax="proto3";
+message Empty {
+    int32 emptyField = 1;
+}

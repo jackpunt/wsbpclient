@@ -1,5 +1,5 @@
 import { argVal, AT, buildURL, className, json, stime } from "@thegraid/common-lib"
-import { GgMessage, GgType } from "../src/GgProto.js"
+import { GgMessage, GgType } from "./GgMessage.js"
 import { addEnumTypeString, CgBase, CgClient, CgMessage, GgClient, GgRefMixin, LeaveEvent, pbMessage, readyState, rost, WebSocketBase } from '../src/index.js'
 import type { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 import { CgBaseForTestGgClient, Listeners, TestGgClient, TestGgRef } from "./testClasses.js"

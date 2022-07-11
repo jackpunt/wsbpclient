@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "pub": "npm run build; npm version ${1:-patch}; npm publish --access public",
-    "make-proto": "bin/make-patch CgProto GgProto",
+    "make-proto": "bin/make-patch",
     "testCnx": "node test/dist/test/testCnx.js",
     "testGg": "node test/dist/test/testGg.js",
     "testJoin": "node test/dist/test/testJoin.js",

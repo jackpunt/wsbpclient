@@ -1,8 +1,8 @@
 import { AT, json } from "@thegraid/common-lib";
 import { CgBase, GgClient, type pbMessage, CgMessage, stime, type WebSocketBase, readyState, LeaveEvent, GgRefMixin, type rost, className, addEnumTypeString } from "../src/index.js";
-import { GgMessage, GgType } from "../src/GgProto.js";
+import { GgMessage, GgType } from "./GgMessage.js";
 import { wsWebSocketBase } from "../src/wsWebSocketBase.js";
-declare module '../src/GgProto' {
+declare module '../src/GgMessage' {
   interface GgMessage {
     client_from: number // GgReferee expects GgMessage to have a slot for client_from
   }

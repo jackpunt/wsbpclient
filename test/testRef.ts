@@ -1,5 +1,5 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
-import { GgMessage, GgType } from "../src/GgProto.js"
+import { GgMessage, GgType } from "./GgMessage.js"
 import { CgClient, CgMessage, CgType, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
 import type { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 import { TestGgClient, TestGgRef } from "./testClasses.js"
@@ -17,11 +17,6 @@ console.log(stime(this, `nclients=${nclients}`))
 console.log(stime(this, `Connect to testurl = ${AT.ansiText(['green'],testurl)}`))
 const group_name = 'testGroup'
 
-declare module '../src/GgProto' {
-  interface GgMessage {
-    client_from: number // GgReferee expects GgMessage to have a slot for client_from
-  }
-}
 
 function openAndClose(logMsg = '') {
   const errorwsb = (wsb, logmsg=logMsg) => {

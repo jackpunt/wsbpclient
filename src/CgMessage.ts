@@ -11,6 +11,8 @@ export { CgType };
 export class CgMessage extends CgMsgBase {
   /** (message.client_id === GROUP_ID) tell CgServer to cast to all group members (+/- nocc) */
   static GROUP_ID = 255 
+  declare toObject: () => ReturnType<CgMsgBase['toObject']>
+
   get msgPeek() {
     let msg = this.msg
     return (msg !== undefined) ? `${this.msgType}[${msg[1]}+${msg.length}]` : undefined //`${this.cgType}(${this.cause || this.success})`)
