@@ -191,12 +191,12 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     if (message.expectsAck) {
       this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
-      ackPromise.then((ack: CgMessage)=>{
-        this.ll(1) && console.error(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.filled(${ack.msgString})`))
-      }, (reason)=>{
-        this.ll(-1) && console.error(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.rejected(${reason})`))
+      ackPromise.then((ack: CgMessage) => {
+        this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.filled(${ack.msgString})`))
+      }, (reason) => {
+        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.rejected(${reason})`))
       }).catch((reason) => {
-        this.ll(-1) && console.error(stime(this, `.sendToSocket[${this.client_id}] p_ack.catch(${reason})`))
+        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] p_ack.catch(${reason})`))
       })
     } else {
       ackPromise.fulfill(undefined)    // no Ack is coming
