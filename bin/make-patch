@@ -2,7 +2,7 @@
 # $@: Proto file names
 # make-patch CgProto
 function protoc_gen_ts() {
-  protoc -I . --ts_out=. ${1}.proto
+  protoc -I . --ts_opt=explicit_override --ts_out=. ${1}.proto
 }
 function makepatch() {
   local Proto="$1"
