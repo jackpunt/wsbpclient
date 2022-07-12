@@ -6,47 +6,23 @@
 import * as pb_1 from "google-protobuf";
 export class Empty extends pb_1.Message {
     #one_of_decls: number[][] = [];
-    constructor(data?: any[] | {
-        emptyField?: number;
-    }) {
+    constructor(data?: any[] | {}) {
         super();
         pb_1.Message.initialize(this, Array.isArray(data) ? data : [], 0, -1, [], this.#one_of_decls);
-        if (!Array.isArray(data) && typeof data == "object") {
-            if ("emptyField" in data && data.emptyField != undefined) {
-                this.emptyField = data.emptyField;
-            }
-        }
+        if (!Array.isArray(data) && typeof data == "object") { }
     }
-    get emptyField() {
-        return pb_1.Message.getFieldWithDefault(this, 1, 0) as number;
-    }
-    set emptyField(value: number) {
-        pb_1.Message.setField(this, 1, value);
-    }
-    static fromObject(data: {
-        emptyField?: number;
-    }): Empty {
+    static fromObject(data: {}): Empty {
         const message = new Empty({});
-        if (data.emptyField != null) {
-            message.emptyField = data.emptyField;
-        }
         return message;
     }
     toObject() {
-        const data: {
-            emptyField?: number;
-        } = {};
-        if (this.emptyField != null) {
-            data.emptyField = this.emptyField;
-        }
+        const data: {} = {};
         return data;
     }
     serialize(): Uint8Array;
     serialize(w: pb_1.BinaryWriter): void;
     serialize(w?: pb_1.BinaryWriter): Uint8Array | void {
         const writer = w || new pb_1.BinaryWriter();
-        if (this.emptyField != 0)
-            writer.writeInt32(1, this.emptyField);
         if (!w)
             return writer.getResultBuffer();
     }
@@ -56,9 +32,6 @@ export class Empty extends pb_1.Message {
             if (reader.isEndGroup())
                 break;
             switch (reader.getFieldNumber()) {
-                case 1:
-                    message.emptyField = reader.readInt32();
-                    break;
                 default: reader.skipField();
             }
         }

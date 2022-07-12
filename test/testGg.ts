@@ -65,7 +65,7 @@ function openAndClose(logMsg = '') {
       let port = wssPort(wsbase)
       console.log(stime(logMsg, `--${ggId} open(${port}):`), wsbase.closeState, wsbase.wsOpen) // json(ev) is cicular
       await clientRun(ggc, cgbase)
-      if (cgbase.client_id == 2)
+      if (ggc.instId%2 == 0)
         await cgbase.send_leave(group_name, cgbase.client_id, 'testDone&close', true)
       waitClose(wsbase, ggId, 500 * ggc.instId, () => { console.log(stime(this, `.makeClientAndRun: closed`)) })
       done()

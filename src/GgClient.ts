@@ -1,8 +1,9 @@
 import { json } from "@thegraid/common-lib";
 import type { BinaryReader } from "google-protobuf";
-import { GgMessageOpts, GgMessage, GgType, rost, Rost, GgMessageOptsX } from "./GgMessage.js";
+import { GgMessageOpts, GgMessage, GgType, rost, Rost, GgMessageOptsX, GgMessageOptT, IGgMessage } from "./GgMessage.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
 import { CgMsgBase } from "./proto/CgProto.js";
+import type { GgMsgBase } from "./proto/GgProto.js";
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -17,20 +18,6 @@ function stringData(data: DataBuf<any>) { // TODO: import from types (data is a 
   return String.fromCharCode(...k)
 }
 
-/** Generic Game message: join (client_id, player, name, roster), next, undo, chat(name, inform)... 
- */
-interface GgMessageX extends pbMessage { 
-  type: GgType | any; // message_id: number from compatible enum...
-  client: number;     // client_id: from ClientGroup; ref sets { client, player, name }
-  player: number;     // player_id: serial #; large values indicate observer or referee (237)
-  name: string;       // player name (provide when joining, must be unique w/in the Group)
-  roster: Rost[];     // { client: client_id, player: player_id, name: name }
-  client_to: number;  // from CgMessage: wrapper.client_id  [referee checks on join]
-  inform: string;     // information string for logging/debugging
-  /** type as a string (vs enum value) */
-  get msgType(): string // typically injected into pbMessage<Ioc extends GgMessage>
-}
-
 // try make a Generic GgClient that wraps a CgBase for a given GgMessage/pbMessage type.
 // InnerMessage is like: HgMessage or CmMessage: share basic messages:
 // CgProto Ack/Nak, send_send, send_join(group); onmessage -> parseEval
@@ -38,7 +25,7 @@ interface GgMessageX extends pbMessage {
 // inject a deserializer!
 // We extend BaseDriver with the GenericGame proto driver/client, using these methods to talk to CgBase
 /** Driver that speaks Generic Game proto above CgBase<GgMessage>: players join, take turns, undo... */
-export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessage, pbMessage> {
+export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMessage, pbMessage> {
   //wsbase: WebSocketBase<pbMessage, pbMessage>;
   cgbase: CgBase<InnerMessage>; // === this.dnstream
   /** Constructor<InnerMessage>(DataBuf) */
@@ -191,7 +178,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     return ggPromise
   }
   /** make a Game-specific 'join' message... */
-  make_join(name: string, opts: GgMessageOpts = {}): InnerMessage {
+  make_join(name: string, opts: GgMessageOptT = {}): InnerMessage {
     return new this.ImC({ ...opts, client_from: this.client_id, name: name, type: GgType.join }) // include other required args
   } 
   /** send Join request to referee.
@@ -199,7 +186,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
    * See also: sendAndReceive() to obtain the response Join fromReferee
    * (which will come to eval_join anyway, with name & player_id)
    */
-  send_join(name: string, opts: GgMessageOpts = {}): AckPromise {
+  send_join(name: string, opts: GgMessageOptT = {}): AckPromise {
     let message = this.make_join(name, opts)
     return this.send_message(message, { client_id: 0 }) // to Referee only.
   }
@@ -233,7 +220,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.parseEval(message)
   }
 
-  override parseEval(message: GgMessage) {
+  override parseEval(message: IGgMessage) {
     let type = message.type
     switch (type) {
       case GgType.none: { this.eval_none(message); break }
@@ -256,11 +243,11 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
   /**
    * do nothing, not expected
    */
-  eval_none(message: GgMessage) {
+  eval_none(message: IGgMessage) {
     this.sendCgAck("none")
   }
   /** display 'cause' in scrolling TextElement */
-  eval_chat(message: GgMessage) {
+  eval_chat(message: IGgMessage) {
     this.sendCgAck("chat")
   }
 
@@ -271,7 +258,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.roster = roster.map(rost => { let { player, client, name } = rost; return { player, client, name }})
   }
   /** GgClient: when [this or other] client joins/leaves Game: update roster */
-  eval_join(message: GgMessage, logit = this.ll(1)) {
+  eval_join(message: IGgMessage, logit = this.ll(1)) {
     logit && console.log(stime(this, ".eval_joinGame:"), this.msgToString(message))
     if (this.client_id === message.client) {
       this.player_id = message.player
@@ -282,13 +269,13 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
     this.sendCgAck("joinGame")
   }
   /** invoke table.undo */
-  eval_undo(message: GgMessage) {
+  eval_undo(message: IGgMessage) {
     //this.table.undoIt()
     this.sendCgAck("undo")
   }
 
   /** invoke table.setNextPlayer(n) */
-  eval_next(message: GgMessage) {
+  eval_next(message: IGgMessage) {
     let player = message.player
     //this.table.setNextPlayer(player) // ndx OR undefined ==> -1
     this.sendCgAck("next")
@@ -300,7 +287,7 @@ export class GgClient<InnerMessage extends GgMessage> extends BaseDriver<GgMessa
  * 
  * Eg: class HgReferee extends GgRefMixin<HgMessage, HgClient>(HgClient) {}
  */
-export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
+export function GgRefMixin<InnerMessage extends IGgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
   return class GgRefBase extends Base {
     get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
     /** GgRefMixin.GgRefBase() */
@@ -399,7 +386,7 @@ export function GgRefMixin<InnerMessage extends GgMessage, TBase extends Constru
       this.send_join(name, { client, player, roster }, { info }) // fromReferee to Group.
     }
     /** send join with roster to everyone. */
-    override send_join(name: string, ggOpts: GgMessageOpts = {}, cgOpts: CgMessageOpts = {}): AckPromise {
+    override send_join(name: string, ggOpts: GgMessageOptT = {}, cgOpts: CgMessageOpts = {}): AckPromise {
       let message = this.make_join(name, ggOpts)
       this.ll(1) && console.log(stime(this, ".send_joinGame"), this.msgToString(message))
       return this.send_message(message, { client_id: CgMessage.GROUP_ID, nocc: true, ...cgOpts }) // from Referee

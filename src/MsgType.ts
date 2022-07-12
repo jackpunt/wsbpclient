@@ -3,7 +3,7 @@ import { CgMessage, CgType } from "./CgMessage.js";
 import { GgType } from "./GgMessage.js"
 import { CgMsgBase } from "./proto/CgProto.js";
 import type { Empty } from "./proto/Empty.js";
-import { GgMsgBase } from "./proto/GgProto.js";
+import type { GgMsgBase } from "./proto/GgProto.js";
 import type { pbMessage } from "./types.js";
 
 export interface MsgTypeFuncs {
@@ -24,7 +24,15 @@ export interface MsgTypeFuncs {
 interface typedMsg { get type(): number }
 type MsgTypeKeys = keyof typedMsg
 interface msgWithType extends pbMessage, typedMsg {}
-type xtype = keyof pbMessage | keyof Empty | keyof pbMessage
+type xtype = Pick<GgMsgBase, keyof pbMessage >
+type ytype = Pick<GgMsgBase, keyof Empty > // includes serialize
+type ztype = Pick<GgMsgBase, keyof pbMessage>
+
+import * as jspb from 'google-protobuf';
+jspb.Message.prototype.serializeBinary
+type foa = Exclude<keyof GgMsgBase, ''>
+type fox = Exclude<keyof GgMsgBase, keyof jspb.Message | 'serialize'>
+type fob = Exclude<keyof GgMsgBase, keyof pbMessage>
 
 /** Augment a protoc-gen-ts pbMessage with MsgTypeFuncs, */
 export function MsgTypeMixin<TBase extends Constructor<msgWithType>>(Base: TBase) {

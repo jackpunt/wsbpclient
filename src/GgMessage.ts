@@ -1,15 +1,33 @@
-import { json } from '@thegraid/common-lib'
+import { Constructor, json } from '@thegraid/common-lib'
 import { MsgTypeMixin } from './MsgType.js'
-import { GgMsgBase, GgType } from './proto/GgProto.js'
-import type { pbMessage } from './types.js'
+import type { Empty } from './proto/Empty.js'
+import { GgMsgBase, GgType, Rost } from './proto/GgProto.js'
+import type { DataBuf, pbMessage } from './types.js'
 export { GgType, Rost } from './proto/GgProto.js'
 
+export interface IGgMessage extends pbMessage { 
+  type: number;       // message_id: number from compatible enum...
+  client: number;     // client_id: from ClientGroup; ref sets { client, player, name }
+  player: number;     // player_id: serial #; large values indicate observer or referee (237)
+  name: string;       // player name (provide when joining, must be unique w/in the Group)
+  roster: Rost[];     // { client: client_id, player: player_id, name: name }
+  client_to: number;  // from CgMessage: wrapper.client_id  [referee checks on join]
+  inform: string;     // information string for logging/debugging
+  /** type as a string (vs enum value) */
+  get msgType(): string // typically injected into pbMessage<Ioc extends GgMessage>
+  get msgObject(): { msgType?: string }
+  get msgString(): string
+  // declare module "src/IoCproto" { interface IoC { msgType: string }}; addEnumTypeString(IoC)
+  toObject(): { type?: number }
+  // static deserialize(buf: DataBuf<any>): this
+}
 /** GgMessage.Rost as interface: */
 export type rost = { name: string, client: number, player: number }
 
 type GGMK = Exclude<keyof GgMsgBase, Partial<keyof pbMessage> | "serialize">
 /** keys to supply to new GgMessage() --> new GgMsgBase() */
 export type GgMessageOpts = Partial<Pick<GgMsgBase, GGMK>>
+export type GgMessageOptT = Partial<Pick<GgMsgBase, Exclude<GGMK, 'type'>>>
 
 /** typeof GgMesssge.toObject() */
 export type GgMessageOptsX = ReturnType<GgMsgBase["toObject"]> & { msgType: string }
@@ -23,11 +41,9 @@ type ObjType = ReturnType<GgMsgBase['toObject']>
 // https://github.com/microsoft/TypeScript/issues/41347
 // TS-4.6.2 does not allow Mixins to have override-able get accessors [d.ts cannot tell property from accessor]
 // so we will forego 'extends MsgTypeMixin(GgMsgBase)' until that is fixed (fixed May 2022...)
-export class GgMessage extends (GgMsgBase) {
-  constructor(obj: ConsType) {
-    super(obj)
-    console.log(this.toObject().player)
-  }
+
+export class GgMessage extends (GgMsgBase) implements IGgMessage {
+
   declare toObject: () => ReturnType<GgMsgBase['toObject']>
   //override toObject(): ReturnType<GgMsgBase['toObject']> { return super.toObject()}
   client_from: number
@@ -52,6 +68,41 @@ export class GgMessage extends (GgMsgBase) {
       Object.setPrototypeOf(newMsg, GgMessage.prototype)
     }
     return newMsg
+  }
+}
+
+export function GgMsgMixin<TBase extends Constructor<IGgMessage>>(Base: TBase) {
+  return class GgMixinBase extends Base {
+    constructor(...args: any[]) {
+      super(...args)
+      delete GgMixinBase.prototype.serializeBinary;
+    }
+    serializeBinary(): Uint8Array { throw new Error('Method not implemented.') }
+    declare toObject: () => ReturnType<GgMsgBase['toObject']>
+    //override toObject(): ReturnType<GgMsgBase['toObject']> { return super.toObject()}
+    client_from: number
+    override get msgType() { return GgType[this.type] }
+    override get msgObject(): GgMessageOptsX {
+      let msgObject = { msgType: `${this.msgType}(${this.type})`, ...this?.toObject() }
+      if (msgObject.name.length == 0) delete msgObject.name
+      if (msgObject.json.length == 0) delete msgObject.json
+      if (msgObject.inform.length == 0) delete msgObject.inform
+      if (msgObject.player == 0) delete msgObject.player // TODO: assign player=1 & player=2 ... allPlayers[!]
+      if (!this.roster) delete msgObject.roster // bug in pbMessage.toObject()
+      delete msgObject.type
+      return msgObject
+    }
+    override get msgString() { return json(this.msgObject) }
+
+    // static override deserialize<GgMessage>(data: Uint8Array) {
+    //   let newMsg = undefined as GgMessage
+    //   if (data == undefined) return newMsg
+    //   newMsg = GgMsgBase.deserialize(data) as any as GgMessage
+    //   if (newMsg instanceof GgMsgBase) {
+    //     Object.setPrototypeOf(newMsg, GgMessage.prototype)
+    //   }
+    //   return newMsg
+    // }
   }
 }
 // type GK = keyof GgMessage

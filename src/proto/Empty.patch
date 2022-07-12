@@ -1,7 +1,7 @@
-*** Empty.ts	2022-07-10 21:26:22.000000000 -0700
---- Empty-patched.ts	2022-07-10 21:25:49.000000000 -0700
+*** Empty.ts	2022-07-11 22:37:48.000000000 -0700
+--- Empty-patched.ts	2022-07-11 21:39:54.000000000 -0700
 *************** export class Empty extends pb_1.Message 
-*** 67,73 ****
+*** 40,46 ****
       serializeBinary(): Uint8Array {
           return this.serialize();
       }
@@ -9,7 +9,7 @@
           return Empty.deserialize(bytes);
       }
   }
---- 67,73 ----
+--- 40,46 ----
       serializeBinary(): Uint8Array {
           return this.serialize();
       }

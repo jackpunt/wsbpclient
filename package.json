@@ -21,7 +21,7 @@
     "jest": "npm run maketest; jest --runInBand --force-exit --verbose test/dist/test/*.spec.js",
     "jest1": "npm run maketest; jest --runInBand --force-exit --verbose test/dist/test/*.spec.js Xnomsgs",
     "tsc-options": "are configured in tsconfig.json",
-    "tsc": "tsc --esModuleInterop",
+    "tsc": "tsc",
     "clean": "rm -rf lib/*; cp .npmignore lib",
     "tar": "npm run build; tar -cf wspbclient.tar --exclude=lib/ws* README.md lib/* package.json",
     "make": "npm run clean; npm run make-proto; npm run tsc; date",

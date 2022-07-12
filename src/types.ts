@@ -1,7 +1,8 @@
-import type * as jspb from 'google-protobuf';
+import * as jspb from 'google-protobuf';
 export { className, stime } from '@thegraid/common-lib';
 export { EzPromise } from '@thegraid/ezpromise';
 
+export {jspb as jsbp }
 export interface pbMessage extends jspb.Message {}
 export type Constructor<T> = new (...args: any[]) => T; //  Constructor<T = {}>
 

@@ -63,12 +63,14 @@ export class CgMessage extends CgMsgBase {
 }
 
 // https://www.typescriptlang.org/docs/handbook/utility-types.html
-type CGMKw = "serialize" | "outObject" | "expectsAck" // hidden
-type CGMKx = "msgType" | "msgPeek" | "msgStr"         // visible as CgMessageOptX [? | "msgObject"]
+type CGMKw = "serialize" | "expectsAck" // hidden
+/** visible as CgMessageOptX -- in the output msgObject */
+type CGMKx = "msgType" | "msgObject" | "msgString" | "msgPeek" | "msgStr"
+/** Keys for CgMessage constructor. */
 type CGMK = Exclude<keyof CgMessage, Partial<keyof pbMessage> | CGMKw | CGMKx >
-/** shape of msgObj */
+/** shape of msgObject */
 type CgMessageOptsX = Partial<Pick<CgMessage, CGMK | CGMKx>>
-/** writeable msgObj */
+/** writeable msgObject: used internally to create msgObject */
 type CgMessageOptsW = { -readonly [key in keyof CgMessageOptsX] : CgMessageOptsX[key] }
 /** Attributes that can be set when making/sending a CgMessage. */
 export type CgMessageOpts = Partial<Pick<CgMessage, CGMK>>
