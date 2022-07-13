@@ -269,7 +269,9 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
     let rost = this.roster.find(pr => pr.player === player_id)
     return !!rost ? rost.client : undefined
   }
-
+  override msgToString(message: IGgMessage) {
+    return message.msgString
+  }
   /** GgClient: when [this or other] client joins/leaves Game: update roster */
   eval_join(message: IGgMessage, logit = this.ll(1)) {
     logit && console.log(stime(this, ".eval_joinGame:"), this.msgToString(message))

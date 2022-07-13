@@ -191,7 +191,6 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     if (message.expectsAck) {
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
       this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack.message =`), ackPromise.message.msgString)
-      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack.message =`), ackPromise.message)
       // handle ack by Promise, not eval_ack:
       ackPromise.then((ack: CgMessage) => {
         this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] done: p_ack.filled(${ack.msgString})`))
@@ -244,7 +243,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     let promise = this.sendToSocket(message) // send_join
     this.ll(2) && console.log(stime(this, ".send_join:"), "promise=", promise, "then=", promise.then)
     promise.then((ack) => {
-      this.ll(0) && console.log(stime(this, `.send_join:`), "ack=", ack.msgString)
+      this.ll(2) && console.log(stime(this, `.send_join:`), "ack=", ack.msgString)
       this.group_name = ack.group
       this.client_id = ack.client_id
     }, (rej: any) => {

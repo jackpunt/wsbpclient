@@ -53,7 +53,7 @@ function openAndClose(logMsg = '') {
     let ack0 = await cgc.send_join(group_name)  // join GROUP as client
     if (ack0.success != true) return console.error(stime(this, `.clientRun: join failed:`), ack0.cause)
     let joinMsg = await joinGame(ggc, cgc)      // joinMsg.value -> {client, player, name, roster} ?
-    console.log(stime(logMsg, `.clientRun: joinMsg =`), json(joinMsg.toObject()))
+    console.log(stime(logMsg, `.clientRun: joinMsg =`), joinMsg.msgString)
   }
   let makeClientAndRun = () => {
     let done, pdone = new Promise<void>((res, rej) => { done = res })
