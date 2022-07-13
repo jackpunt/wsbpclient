@@ -23,7 +23,7 @@
     "tsc-options": "are configured in tsconfig.json",
     "tsc": "tsc",
     "clean": "rm -rf lib/*; cp .npmignore lib",
-    "tar": "npm run build; tar -cf wspbclient.tar --exclude=lib/ws* README.md lib/* package.json",
+    "maketar": "npm run build; npm pack",
     "make": "npm run clean; npm run make-proto; npm run tsc; cp src/proto/GgProto.proto lib/proto ;date",
     "build": "npm run make"
   },

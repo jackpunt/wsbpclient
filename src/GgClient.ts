@@ -253,10 +253,23 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
 
   /** all the known players (& observers: !realPlayer(player)) gg-ref controls. */
   roster: Array<rost> = []
+  
   updateRoster(roster: Rost[]) {
     // convert pb 'Rost' into js 'rost'
     this.roster = roster.map(rost => { let { player, client, name } = rost; return { player, client, name }})
   }
+
+  /** player_id of given client_id (lookup from roster) */
+  client_player_id(client_id: number) {
+    let rost = this.roster.find(pr => pr.client === client_id)
+    return !!rost ? rost.player : undefined
+  }
+  /** client_id of given player_id (lookup from roster) */
+  player_client_id(player_id: number) {
+    let rost = this.roster.find(pr => pr.player === player_id)
+    return !!rost ? rost.client : undefined
+  }
+
   /** GgClient: when [this or other] client joins/leaves Game: update roster */
   eval_join(message: IGgMessage, logit = this.ll(1)) {
     logit && console.log(stime(this, ".eval_joinGame:"), this.msgToString(message))
@@ -328,12 +341,6 @@ export function GgRefMixin<InnerMessage extends IGgMessage, TBase extends Constr
       this.ll(1) && console.log(stime(this, `.client_leave: ${group}; roster =`), this.roster.concat())
       // tell the other players: send_join(roster)
       this.send_roster(pr, 'leaveGame')  // noting that 'pr' will not appear in roster...
-    }
-
-    /** player_id of given client_id (lookup from roster) */
-    player_index(client_id: number) {
-      let rost = this.roster.find(pr => pr.client === client_id)
-      return !!rost ? rost.player : undefined    
     }
 
     /** GgRefMixin.RefereeBase: message is request to join GAME, assign Player_ID */

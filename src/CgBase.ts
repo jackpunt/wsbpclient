@@ -51,7 +51,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
   client_id: number;   // my client_id for this group.
 
   /** used in parseEval logging, override in CgServerDriver */
-  get client_port(): string | number { return this.client_id || 'no_client_id'; }
+  get client_port(): string | number { return (this.client_id === undefined) ? 'no_client_id' : this.client_id }
 
   // this may be tricky... need to block non-ack from any client with outstanding ack
   // (send them an immediate nak) in CgServerDriver
@@ -189,14 +189,16 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     this.sendBuffer(bytes) // send message to socket
 
     if (message.expectsAck) {
-      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack=`), this.innerMessageString(ackPromise.message))
       this.promise_of_ack = ackPromise // Ack for the most recent message.expectsAck()
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack.message =`), ackPromise.message.msgString)
+      this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] p_ack.message =`), ackPromise.message)
+      // handle ack by Promise, not eval_ack:
       ackPromise.then((ack: CgMessage) => {
-        this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.filled(${ack.msgString})`))
+        this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] done: p_ack.filled(${ack.msgString})`))
       }, (reason) => {
-        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] sent p_ack.rejected(${reason})`))
+        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] done: p_ack.rejected(${reason})`))
       }).catch((reason) => {
-        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] p_ack.catch(${reason})`))
+        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] done: p_ack.catch(${reason})`))
       })
     } else {
       ackPromise.fulfill(undefined)    // no Ack is coming
@@ -242,7 +244,7 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     let promise = this.sendToSocket(message) // send_join
     this.ll(2) && console.log(stime(this, ".send_join:"), "promise=", promise, "then=", promise.then)
     promise.then((ack) => {
-      this.ll(2) && console.log(stime(this, ".send_join"), "ack=", ack)
+      this.ll(0) && console.log(stime(this, `.send_join:`), "ack=", ack.msgString)
       this.group_name = ack.group
       this.client_id = ack.client_id
     }, (rej: any) => {

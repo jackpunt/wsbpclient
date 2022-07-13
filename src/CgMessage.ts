@@ -1,13 +1,11 @@
-import { json } from '@thegraid/common-lib'
-import { CgMsgBase } from './proto/CgProto.js'
-import { charString, pbMessage } from './types.js'
-import { CgType } from './proto/CgProto.js'
-import type { BinaryReader } from 'google-protobuf';
+import { json } from '@thegraid/common-lib';
+import * as jspb from 'google-protobuf'; // pb_1
+import { CgMsgBase, CgType } from './proto/CgProto.js';
+import { charString, pbMessage } from './types.js';
 
 export { CgType };
-//function charString(char) { return (char >= 32 && char < 127) ? String.fromCharCode(char) : `\\${char.toString(10)}`}
 
-// add methods to the objects created by new CgMessage()
+/** add methods to extend CgMsgBase */
 export class CgMessage extends CgMsgBase {
   /** (message.client_id === GROUP_ID) tell CgServer to cast to all group members (+/- nocc) */
   static GROUP_ID = 255 
@@ -34,25 +32,38 @@ export class CgMessage extends CgMsgBase {
     }
     return undefined
   }
+  get has_type() { return jspb.Message.getField(this, 1)}
+  get has_client_id() { return jspb.Message.getField(this, 2)}
+  get has_success() { return jspb.Message.getField(this, 3)} // note: only applies to Ack
+  get has_client_from() { return jspb.Message.getField(this, 4)}
+  get has_cause() { return jspb.Message.getField(this, 5)}
+  get has_info() { return jspb.Message.getField(this, 6)}
+  get has_ident() { return jspb.Message.getField(this, 7)}
+  get has_msg() { return jspb.Message.getField(this, 8)}
+  get has_group() { return jspb.Message.getField(this, 9)}
+  get has_nocc() { return jspb.Message.getField(this, 10)}
+  get has_acks() { return this.acks?.length > 0 } // 11
+
   get msgObject(): CgMessageOptsX {
-    let msgType = this.msgType  // every CgMessage has a msgType
-    let msgObj: CgMessageOptsW = { msgType } // { msgType, ...this.toObject() }
-    if (this.type == CgType.ack) msgObj.success = this.success
-    if (this.client_id !== undefined) msgObj.client_id = this.client_id
-    if (this.client_from !== undefined) msgObj.client_from = this.client_from
-    if (this.cause?.length > 0) msgObj.cause = this.cause 
-    if (this.info?.length > 0) msgObj.info = this.info
-    if (this.ident != 0) msgObj.ident = this.ident
-    if (this.group?.length > 0) msgObj.group = this.group
-    if (this.nocc != false) msgObj.nocc = this.nocc
-    if (this.msg?.length > 0) msgObj.msgStr = this.msgStr
+    // every CgMessage has a msgType; put it first in the result object:
+    let msgObj: CgMessageOptsW = { msgType: this.msgType } // { msgType, ...this.toObject() }
+    if (this.has_success) msgObj.success = this.success
+    if (this.has_client_id) msgObj.client_id = this.client_id
+    if (this.has_client_from) msgObj.client_from = this.client_from
+    if (this.has_cause) msgObj.cause = this.cause 
+    if (this.has_info) msgObj.info = this.info
+    if (this.has_ident) msgObj.ident = this.ident
+    if (this.has_group) msgObj.group = this.group
+    if (this.has_nocc) msgObj.nocc = this.nocc
+    if (this.has_msg) msgObj.msgStr = this.msgStr
     if (this.acks?.length > 0) msgObj.acks = this.acks
     return msgObj
   }
+
   get msgString() { return json(this.msgObject) }
 
-  /** delegate to CgBaseMsg */
-  static override deserialize(data: Uint8Array | BinaryReader) {
+  /** delegate to CgBaseMsg; but inject CgMessage methods. */
+  static override deserialize(data: Uint8Array) {
     if (data == undefined) return undefined as CgMessage
     let newMsg = CgMsgBase.deserialize(data) as CgMessage
     if (newMsg instanceof CgMsgBase) {
@@ -67,7 +78,7 @@ type CGMKw = "serialize" | "expectsAck" // hidden
 /** visible as CgMessageOptX -- in the output msgObject */
 type CGMKx = "msgType" | "msgObject" | "msgString" | "msgPeek" | "msgStr"
 /** Keys for CgMessage constructor. */
-type CGMK = Exclude<keyof CgMessage, Partial<keyof pbMessage> | CGMKw | CGMKx >
+type CGMK = Exclude<keyof CgMsgBase, Partial<keyof pbMessage> | CGMKw>
 /** shape of msgObject */
 type CgMessageOptsX = Partial<Pick<CgMessage, CGMK | CGMKx>>
 /** writeable msgObject: used internally to create msgObject */
