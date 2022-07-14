@@ -1,4 +1,4 @@
-import { json } from "@thegraid/common-lib";
+import { AT, json } from "@thegraid/common-lib";
 import type { BinaryReader } from "google-protobuf";
 import { GgMessageOpts, GgMessage, GgType, rost, Rost, GgMessageOptsX, GgMessageOptT, IGgMessage } from "./GgMessage.js";
 import { AckPromise, addEnumTypeString, BaseDriver, CgBase, CgMessage, CgMessageOpts, CgType, className, DataBuf, EzPromise, LeaveEvent, pbMessage, stime, WebSocketBase } from "./index.js";
@@ -246,8 +246,10 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
   eval_none(message: IGgMessage) {
     this.sendCgAck("none")
   }
-  /** display 'cause' in scrolling TextElement */
+  /** TOOD: display 'inform' in scrolling TextElement */
   eval_chat(message: IGgMessage) {
+    console.log(`eval_chat`, message.msgObject, this.roster)
+    console.log(stime(this, `.eval_chat[${this.client_id}] From ${this.client_roster_name(message.client)}: ${AT.ansiText(['$magenta', 'bold'], message.inform)}`))
     this.sendCgAck("chat")
   }
 
@@ -258,18 +260,20 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
     // convert pb 'Rost' into js 'rost'
     this.roster = roster.map(rost => { let { player, client, name } = rost; return { player, client, name }})
   }
+  /** Roster name for given client_id */
+  client_roster_name(client_id) {
+    return this.roster.find(pr => pr.client === client_id)?.name
+  }
 
   /** player_id of given client_id (lookup from roster) */
   client_player_id(client_id: number) {
-    let rost = this.roster.find(pr => pr.client === client_id)
-    return !!rost ? rost.player : undefined
+    return this.roster.find(pr => pr.client === client_id)?.player
   }
   /** client_id of given player_id (lookup from roster) */
   player_client_id(player_id: number) {
-    let rost = this.roster.find(pr => pr.player === player_id)
-    return !!rost ? rost.client : undefined
+    return this.roster.find(pr => pr.player === player_id)?.client
   }
-  override msgToString(message: IGgMessage) {
+    override msgToString(message: IGgMessage) {
     return message.msgString
   }
   /** GgClient: when [this or other] client joins/leaves Game: update roster */
@@ -304,14 +308,16 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
  */
 export function GgRefMixin<InnerMessage extends IGgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
   return class GgRefBase extends Base {
-    get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this)
+    get stage() { return {}} // a 'stage' with no canvas, so stime.anno will show " R" for all log(this) TODO: fix
     /** GgRefMixin.GgRefBase() */
     constructor(...args: any[]) { 
       super(...args)  // invoke the given Base constructor: GgClientForRef
       return
     }
     /**
-     * Connect GgRefMixin to given URL.
+     * Connect GgRefMixin/GgClient\<InnerMessage> to given URL.
+     * - self-join as "referee"
+     * - listen for dnstream: CgBase\<GgMessage> 'leave' messages.
      * @param onOpen inform caller that CG connection Stack is open
      * @param onJoin inform caller that GgReferee has joined CG
      * @returns the GgRefMixin (like the constructor...)
@@ -392,7 +398,15 @@ export function GgRefMixin<InnerMessage extends IGgMessage, TBase extends Constr
       let { name, client, player } = pr
       let active = this.roster.filter(pr => pr.client != undefined)
       let roster = active.map(pr => new Rost(pr))
-      this.send_join(name, { client, player, roster }, { info }) // fromReferee to Group.
+      // server may Nak this if it has sent (but we did not yet recv) more messages.
+      // if so, we resend and expect defer= to handle
+      let ackP = this.send_join(name, { client, player, roster }, { info }) // fromReferee to Group.
+      ackP.then((ack) => {
+        if (ack.success) return
+        if (ack.cause.startsWith('need to ack:')) {
+          this.send_roster(pr, info) // try again; noting roster may have changed...
+        }
+      })
     }
     /** send join with roster to everyone. */
     override send_join(name: string, ggOpts: GgMessageOptT = {}, cgOpts: CgMessageOpts = {}): AckPromise {

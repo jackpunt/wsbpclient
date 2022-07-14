@@ -87,11 +87,11 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
     //let msgType = msg.msgType // msgType may be undefined 
     //let ary = msg?.['array']?.toString()
     let msgObj = msg.msgString       //, toObj = msg?.toObject()
-    let idata = msg.msg as DataBuf<O>
-    if (idata) {
+    if (msg.has_msg) {
+      let idata = msg.msg as DataBuf<O>
       let ups = (this.upstream as BaseDriver<O, never>)
-      let msg = ups?.deserialize(idata)
-      return (msg == undefined) ? 'no upstream.deserialize' : ups.msgToString(msg)
+      let imsg = ups?.deserialize(idata)
+      return (imsg == undefined) ? 'no upstream.deserialize(imsg)' : ups.msgToString(imsg)
     }
     return { msgObj }
   }
@@ -161,22 +161,34 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * sendBufer(message) downstream, toward websocket. 
    * 
    * @param message to be serialized and sent dnstream
-   * @param ackPromise do NOT provide; new AckPromise(message)
-   * @final do NOT override
    * @return AckPromise(message):  
-   * .reject(error) if there is an error while sending  
-   * .fulfill(ackMsg) when Ack for CgType: join, leave, send is received  
+   * .reject(reason) if there is an error while sending (eg: socket is closed) 
+   * .fulfill(ackMsg) when Ack/Nak for CgType: join, leave, send is received  
    * .fulfill(undefined) if !message.expectsAck
    */
-  sendToSocket(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
+  sendToSocket(message: CgMessage) {
+    return this.sendToSocket_ack(message, undefined)
+  }
+  /** initial invocation with ackPromise=undefined; if 'defer' then re-call with AckPromise. */
+  sendToSocket_ack(message: CgMessage, ackPromise: AckPromise = new AckPromise(message)): AckPromise {
     if ((message.expectsAck && !this.ack_resolved)) {
       // queue this message for sending when current message is ack'd:
       this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] defer=`), { msgStr: this.innerMessageString(message), to_resolve: this.ack_message?.msgString })
+      // provide a rejection handler in case our socket closes before the message is ack'd
+      ackPromise.then(undefined, (reason) => {
+        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] deferred1 p_ack.rejected(${reason})`))
+      })
+      // when current ack_promise/message is resolved, then try send new message:
+      // this.ack_promise may have a longish list of 'then' invocations... 
+      // TODO is it better: this.ack_promise = this.ack_promise.then((ack) => {...})? chaining/stacking the Promises?
+      // would also need to 'pop' a new value into this.ack_promise?
       this.ack_promise.then((ack) => {
-        this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(ack) })
-        this.sendToSocket(message, ackPromise) //.then((ack) => ackPromise.fulfill(ack))
+        // the message may be nak'd by the recipient; handled by eval_nak() or other .then() clauses
+        this.ll(1) && console.log(stime(this, `.sendToSocket[${this.client_id}] refer=`), { msgStr: this.innerMessageString(message), msgType: message.msgType })
+        this.sendToSocket_ack(message, ackPromise) // send if ack.success or not
       }, (reason) => {
-        this.ll(-1) && console.error(stime(this, `.sendToSocket[${this.client_id}] deferred p_ack.rejected(${reason})`))
+        this.ll(-1) && console.warn(stime(this, `.sendToSocket[${this.client_id}] deferred2 p_ack.rejected(${reason})`))
+        // expect ack_promise is *rejected* only by onclose(); so drop all deferred sendToSocket
       })
       return ackPromise  // with message un-sent
     }

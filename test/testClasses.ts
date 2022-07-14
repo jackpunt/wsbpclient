@@ -1,11 +1,15 @@
 import { AT, json } from "@thegraid/common-lib";
 import { CgBase, GgClient, type pbMessage, CgMessage, stime, type WebSocketBase, readyState, LeaveEvent, GgRefMixin, type rost, className, addEnumTypeString } from "../src/index.js";
-import { GgMessage, GgType } from "../src/GgMessage.js";
+import { GgMessage, GgType, IGgMessage } from "../src/GgMessage.js";
 import { wsWebSocketBase } from "../src/wsWebSocketBase.js";
 declare module '../src/GgMessage' {
   interface GgMessage {
     client_from: number // GgReferee expects GgMessage to have a slot for client_from
   }
+}
+const stime_anno0 = stime.anno;
+stime.anno = (obj) => {
+  return (obj instanceof TestGgClient) ? (`[${obj.client_id}]` || '[?]') : stime_anno0(obj)
 }
 
 export type Listener = (ev: any) => void
@@ -57,7 +61,11 @@ export class TestGgClient extends GgClient<GgMessage> {
     //console.log(stime(this, `.eval_joinGame:`), message.toObject())
     super.eval_join(message, true)
   }
-}
+  override eval_chat(message: IGgMessage) {
+    console.log(`eval_chat`, message.msgObject, this.roster)
+    console.log(stime(this, `.eval_chat[${this.logMsg}] From ${this.client_roster_name(message.client)}: ${AT.ansiText(['$magenta', 'bold'], message.inform)}`))
+    this.sendCgAck("chat")
+  }}
 
 export class CgBaseForRef extends CgBase<GgMessage> {
   permRef = true

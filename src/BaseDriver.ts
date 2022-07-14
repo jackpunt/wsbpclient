@@ -138,7 +138,7 @@ export class BaseDriver<I extends pbMessage, O extends pbMessage> implements Web
    *  { this.parseEval(this.deserialize(data)) }
    */
   onmessage(data: DataBuf<I>): void {
-    this.ll(1) && console.log(stime(this, ` BaseDriver.wsmessage:`), this.logData(data))
+    this.ll(1) && console.log(stime(this, ` BaseDriver.onmessage:`), this.logData(data))
   };
   /**
    * BaseDriver hander for (data: DataBuf<I>) from dnstream.

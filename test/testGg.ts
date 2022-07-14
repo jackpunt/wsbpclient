@@ -1,6 +1,6 @@
 import { argVal, AT, buildURL, json, stime } from "@thegraid/common-lib"
 import { GgMessage, GgType } from "../src/GgMessage.js"
-import { CgClient, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
+import { CgClient, CgMessage, GgClient, LeaveEvent, pbMessage, readyState, WebSocketBase } from '../src/index.js'
 import type { wsWebSocketBase } from '../src/wsWebSocketBase.js'
 import { TestGgClient, TestGgRef } from "./testClasses.js"
 import { addListeners, closeStream, listTCPsockets, wssPort } from './testFuncs.js'
@@ -46,14 +46,24 @@ function openAndClose(logMsg = '') {
   }
 
   let joinGame = (ggc: TestGgClient, cgc: CgClient<GgMessage>) => {
-    let name = `test${ggc.instId}`
+    let name = `TestGgC#${ggc.instId}`
     return ggc.sendAndReceive(() => ggc.send_join(name, {inform: `joinGame`}), (msg) => msg.type == GgType.join)
+  }
+  let sendChat = (ggc: TestGgClient, to: number, msg: string) => {
+    return ggc.send_message(new GgMessage({ type: GgType.chat, inform: msg }
+    ), {client_id: to, nocc: true})
+  }
+  let dwell = (msecs: number) => {
+    msecs = 0
+    return new Promise<void>((fil, rej) => setTimeout(fil, msecs));
   }
   let clientRun = async (ggc: TestGgClient, cgc: CgClient<GgMessage>) => {
     let ack0 = await cgc.send_join(group_name)  // join GROUP as client
-    if (ack0.success != true) return console.error(stime(this, `.clientRun: join failed:`), ack0.cause)
+    if (ack0.success != true) return console.error(stime(logMsg, `.clientRun: join failed:`), ack0.cause)
     let joinMsg = await joinGame(ggc, cgc)      // joinMsg.value -> {client, player, name, roster} ?
     console.log(stime(logMsg, `.clientRun: joinMsg =`), joinMsg.msgString)
+    await dwell(100)
+    await sendChat(ggc, CgMessage.GROUP_ID, `chat from ${ggc.logMsg}`)
   }
   let makeClientAndRun = () => {
     let done, pdone = new Promise<void>((res, rej) => { done = res })
@@ -65,8 +75,10 @@ function openAndClose(logMsg = '') {
       let port = wssPort(wsbase)
       console.log(stime(logMsg, `--${ggId} open(${port}):`), wsbase.closeState, wsbase.wsOpen) // json(ev) is cicular
       await clientRun(ggc, cgbase)
-      if (ggc.instId%2 == 0)
+      if (ggc.instId%2 == 0) {
+        await dwell(300)
         await cgbase.send_leave(group_name, cgbase.client_id, 'testDone&close', true)
+      }
       waitClose(wsbase, ggId, 500 * ggc.instId, () => { console.log(stime(this, `.makeClientAndRun: closed`)) })
       done()
     })
@@ -75,9 +87,12 @@ function openAndClose(logMsg = '') {
   startRef(async (wsb: wsWebSocketBase<any, any>, cgc) => {
     setTimeout(async () => {
       console.log(stime(`startRef: Now start clients: ${nclients} --------------`))
+      let pdones: Promise<void>[] = []
       for (let n = 0; n < nclients; n++) {
-        await makeClientAndRun()
+        pdones.push(makeClientAndRun())
+        await dwell(100)
       }
+      await Promise.all(pdones)
       if (nclients > 0 && wsb.wsOpen) {
         // CgServer auto-closes (client_id==0) Referee; so this should be a no-op:
         waitClose(wsb, 'ref', 3300, (ev) => {
