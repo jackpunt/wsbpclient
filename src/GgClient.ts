@@ -119,7 +119,7 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
   /**
    * Send_send via this.dnstream CgBase [after we Ack the previous inbound request]
    * @param message a GgMessage to be wrapped
-   * @param cgOpts -- if not supplied, the default for nocc: is undefined, so ref is not self-copied
+   * @param cgOpts -- if not supplied, the default for nocc: is undefined->false, so ref IS self-copied
    */
   send_message(message: InnerMessage, cgOpts?: CgMessageOpts): AckPromise {
     console.log(stime(this, `.send_message:`), message.msgString, json(cgOpts))
