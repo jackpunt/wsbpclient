@@ -304,7 +304,11 @@ export class GgClient<InnerMessage extends IGgMessage> extends BaseDriver<IGgMes
 /** 
  * Add GgReferee functionality to a GgClient<GgMessage> (expect a dnstream CgBase Driver) 
  * 
- * Eg: class HgReferee extends GgRefMixin<HgMessage, HgClient>(HgClient) {}
+ * GgRefMixin handles: eval_join -> player_id; send_roster; client_leave;
+ * 
+ * Mixin to a specialized GgClient to enforce the rules or other semantics:
+ * 
+ * Eg: class HgReferee extends GgRefMixin<HgMessage, HgClient>(HgClient) { ... }
  */
 export function GgRefMixin<InnerMessage extends IGgMessage, TBase extends Constructor<GgClient<InnerMessage>>>(Base: TBase) {
   return class GgRefBase extends Base {

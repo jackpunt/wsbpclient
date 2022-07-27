@@ -247,7 +247,8 @@ export class CgBase<O extends pbMessage> extends BaseDriver<CgMessage, O>
    * send_join client makes a connection to server group
    * @param group group name
    * @param client_id specify 0 to register as referee; else undefined
-   * @param cause specify 'referee' to register as referee; else undefined
+   * @param cause specify 'referee' to register as referee;
+   * specify 'new' to start a new group (\`${group}NNNN\`); else undefined
    * @returns a Promise that completes when an Ack/Nak is recieved
    */
   send_join(group: string, client_id?: number, cause?: string): AckPromise {
