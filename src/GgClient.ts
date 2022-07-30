@@ -351,6 +351,7 @@ export function GgRefMixin<InnerMessage extends IGgMessage, TBase extends Constr
       let pr: rost = this.roster.splice(rindex, 1)[0]
       // remove from roster, so they can join again! [or maybe just nullify rost.name?]
       this.ll(1) && console.log(stime(this, `.client_leave: ${group}; roster =`), this.roster.concat())
+      if (this.roster.length == 0) return // nobody to tell; presumably (client_id == 0) so We/theRef have gone. 
       // tell the other players: send_join(roster)
       this.send_roster(pr, 'leaveGame')  // noting that 'pr' will not appear in roster...
     }
